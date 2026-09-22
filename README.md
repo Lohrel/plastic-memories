@@ -68,7 +68,7 @@ Profile selection is automatic: native Marinara envelopes use Marinara semantics
 
 Ordinary lorebook activation is client-global by design. Character cards are bound to the selected local world/player/NPC tuple. Imported content remains client-only and is included in private provider prompts only after activation or binding.
 
-COOK may use any supported nearby vanilla container that is unlocked, unblocked, loaded, and permitted by vanilla world interaction checks. On multiplayer servers this can include another player's unprotected chest; third-party claims/ownership integrations, recipe cooking, fuel, and modded-container support remain later milestones. Container-search result codes require multiplayer protocol v4, so every participant must use the exact same JAR.
+COOK may use any supported nearby vanilla container that is unlocked, unblocked, loaded, and permitted by vanilla world interaction checks. On multiplayer servers this can include another player's unprotected chest; third-party claims/ownership integrations, recipe cooking, fuel, and modded-container support remain later milestones. Result codes are part of the multiplayer protocol (currently v5), so every participant must use the exact same JAR.
 
 See [Alpha 4 manual test](docs/ALPHA-4-MANUAL-TEST.md).
 

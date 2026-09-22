@@ -37,8 +37,22 @@ public final class ImportedLorebookEvaluator {
         return new ImportedLorebookEvaluator(random).evaluate(book, scanWindow, 1);
     }
 
-    /** {@code privateMessageCount} should increase each call; if it goes backwards (memory cleared), timers reset. */
+    /**
+     * Selects entries and starts their sticky/cooldown timers. {@code privateMessageCount} should
+     * increase each call; if it goes backwards (memory cleared), timers reset.
+     */
     public List<ImportedLorebookEntry> evaluate(
+            ImportedLorebook book, List<String> scanWindow, int privateMessageCount) {
+        List<ImportedLorebookEntry> selected = select(book, scanWindow, privateMessageCount);
+        recordActivations(book, selected, privateMessageCount);
+        return selected;
+    }
+
+    /**
+     * Like {@link #evaluate} but starts no timers. Call {@link #recordActivations} afterwards with the
+     * entries that were actually sent, so entries cut by the prompt budget don't go on cooldown.
+     */
+    public List<ImportedLorebookEntry> select(
             ImportedLorebook book, List<String> scanWindow, int privateMessageCount) {
         Objects.requireNonNull(book, "book");
         int messageCount = Math.max(0, privateMessageCount);
@@ -107,13 +121,17 @@ public final class ImportedLorebookEvaluator {
                 eligible.add(entry);
             }
         }
-        List<ImportedLorebookEntry> selected = selectGroupWinners(book, eligible, messageCount);
-        for (ImportedLorebookEntry entry : selected) {
+        return selectGroupWinners(book, eligible, messageCount);
+    }
+
+    /** Starts timers for entries that reached the prompt. Entries already sticky keep their current timer. */
+    public void recordActivations(ImportedLorebook book, List<ImportedLorebookEntry> sent, int privateMessageCount) {
+        int messageCount = Math.max(0, privateMessageCount);
+        for (ImportedLorebookEntry entry : sent) {
             if (!timing(book, entry, messageCount).sticky()) {
                 recordActivation(book, entry, messageCount);
             }
         }
-        return selected;
     }
 
     private List<ImportedLorebookEntry> selectGroupWinners(

@@ -7,11 +7,9 @@ public final class NpcProfileClientPayloadHandler {
     }
 
     public static void handle(NpcProfileSnapshotPayload payload, IPayloadContext context) {
-        NpcProfileClientInbox.shared().complete(
+        PendingNpcRequests.PROFILES.complete(
                 payload.npcId(),
                 payload.requestId(),
-                payload.result(),
-                payload.profile(),
-                payload.canEdit());
+                new NpcProfileResponse(payload.result(), payload.profile(), payload.canEdit()));
     }
 }

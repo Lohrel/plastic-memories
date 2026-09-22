@@ -14,7 +14,7 @@ public final class CookContainerFoodResolver {
                 .map(position -> VanillaContainerAccess.resolveAccessible(level, position, player))
                 .flatMap(java.util.Optional::stream)
                 .map(container -> CookInventoryTransfer.planFoodMove(
-                        container, npc.inventory(), npc.inventory().getContainerSize(), 4))
+                        container, npc.inventory(), npc.inventory().getContainerSize(), CookTask.MAX_DELIVERY_QUANTITY))
                 .anyMatch(plan -> plan.result() == CookBatchTransferPlan.Result.READY);
     }
 }

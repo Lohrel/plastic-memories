@@ -7,7 +7,7 @@ public final class NpcCapabilityClientPayloadHandler {
     }
 
     public static void handle(NpcCapabilityPayload payload, IPayloadContext context) {
-        NpcCapabilityClientInbox.shared().complete(
+        PendingNpcRequests.COOK_AVAILABILITY.complete(
                 payload.npcId(), payload.requestId(), payload.cookAvailability());
     }
 }

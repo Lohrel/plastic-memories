@@ -88,7 +88,6 @@ final class OpenAiCompatibleProviderTest {
             assertEquals("Bearer test-key", authorization.get());
             var json = JsonParser.parseString(requestBody.get()).getAsJsonObject();
             assertEquals("test-model", json.get("model").getAsString());
-            assertEquals(0.0, json.get("temperature").getAsDouble());
             assertTrue(requestBody.get().contains("Do you remember me?"));
             assertEquals(
                     "REPLY: Of course I remember you.\nSKILL: NONE",

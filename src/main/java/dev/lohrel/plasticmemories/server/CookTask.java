@@ -24,7 +24,7 @@ final class CookTask implements NpcTask {
     private static final int MAX_DURATION_TICKS = 20 * 120; // Hard 2-minute cap for the whole task.
     private static final int MAX_CONSECUTIVE_PATH_FAILURES = 5;
     private static final int TARGET_INTERACTION_TICKS = 60;
-    private static final int MAX_DELIVERY_QUANTITY = 4;
+    static final int MAX_DELIVERY_QUANTITY = 4;
     private static final double DELIVERY_DISTANCE_SQUARED = 2.5 * 2.5;
     private static final double MOVEMENT_SPEED = 0.65;
 

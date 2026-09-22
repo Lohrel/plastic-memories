@@ -1,25 +1,24 @@
-package dev.lohrel.plasticmemories.network;
+package dev.lohrel.plasticmemories.server;
 
-import dev.lohrel.plasticmemories.adapter.mca.McaNpcResolver;
+import dev.lohrel.plasticmemories.network.SkillRequestPayload;
+import dev.lohrel.plasticmemories.network.SkillResultCode;
+import dev.lohrel.plasticmemories.network.SkillResultPayload;
 import dev.lohrel.plasticmemories.npc.NpcHandle;
-import dev.lohrel.plasticmemories.server.ServerSkillTasks;
 import dev.lohrel.plasticmemories.skill.SkillRequestContext;
 import dev.lohrel.plasticmemories.skill.SkillRequestDecision;
 import dev.lohrel.plasticmemories.skill.SkillRequestGate;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /** Server side of a skill request: validates everything, then starts the task. */
 public final class SkillServerPayloadHandler {
-    private static final SkillRequestGate REQUEST_GATE = new SkillRequestGate(40, 32.0);
-    private static final Map<UUID, Long> NEXT_PACKET_TICK = new HashMap<>();
+    private static final SkillRequestGate REQUEST_GATE = new SkillRequestGate(40, ServerNpcs.INTERACTION_RANGE);
+    // Flood guard only: the gate above does replay and cooldown checks with its own result codes.
+    private static final PlayerRequestLimiter FLOOD_GUARD = new PlayerRequestLimiter(1);
 
     private SkillServerPayloadHandler() {
     }
@@ -29,11 +28,10 @@ public final class SkillServerPayloadHandler {
             return;
         }
         long gameTick = player.serverLevel().getGameTime();
-        // Flood guard: at most one packet per player per tick. Extras are dropped without a reply.
-        if (NEXT_PACKET_TICK.getOrDefault(player.getUUID(), 0L) > gameTick) {
+        // At most one packet per player per tick. Extras are dropped without a reply.
+        if (!FLOOD_GUARD.allowPacket(player.getUUID(), gameTick)) {
             return;
         }
-        NEXT_PACKET_TICK.put(player.getUUID(), gameTick + 1);
         if (payload.requestId() <= 0) {
             respond(player, payload, SkillResultCode.INVALID_REQUEST);
             return;
@@ -48,19 +46,15 @@ public final class SkillServerPayloadHandler {
         }
 
         Entity entity = player.serverLevel().getEntity(payload.npcId());
-        Optional<NpcHandle> npc = entity == null ? Optional.empty() : McaNpcResolver.resolve(entity);
-        boolean validNpc = npc.map(handle -> handle.entity().isAlive()
-                        && !handle.entity().isRemoved()
-                        && (!(handle.entity() instanceof AgeableMob ageable) || !ageable.isBaby()))
-                .orElse(false);
-        if (validNpc && !npc.orElseThrow().canAssignSkill(player)) {
+        Optional<NpcHandle> npc = ServerNpcs.usable(entity);
+        if (npc.isPresent() && !npc.orElseThrow().canAssignSkill(player)) {
             respond(player, payload, SkillResultCode.PERMISSION_DENIED);
             return;
         }
         SkillRequestContext requestContext = new SkillRequestContext(
                 // A missing entity is not "unsupported"; it fails the validNpc check as INVALID_NPC instead.
-                entity == null || npc.isPresent(),
-                validNpc,
+                entity == null || ServerNpcs.isSupported(entity),
+                npc.isPresent(),
                 ServerSkillTasks.isBusy(payload.npcId())
                         || npc.map(handle -> !handle.availableForSkill()).orElse(false),
                 entity == null ? Double.POSITIVE_INFINITY : player.distanceToSqr(entity));
@@ -78,14 +72,14 @@ public final class SkillServerPayloadHandler {
         ServerSkillTasks.startCook(player, npc.orElseThrow(), payload.requestId());
     }
 
-    public static void forgetPlayer(UUID playerId) {
+    static void forgetPlayer(UUID playerId) {
         REQUEST_GATE.forgetPlayer(playerId);
-        NEXT_PACKET_TICK.remove(playerId);
+        FLOOD_GUARD.forget(playerId);
     }
 
-    public static void reset() {
+    static void reset() {
         REQUEST_GATE.clear();
-        NEXT_PACKET_TICK.clear();
+        FLOOD_GUARD.clear();
     }
 
     private static SkillResultCode resultFor(SkillRequestDecision decision) {

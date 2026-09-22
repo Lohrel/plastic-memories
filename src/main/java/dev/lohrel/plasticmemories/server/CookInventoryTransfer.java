@@ -48,7 +48,7 @@ final class CookInventoryTransfer {
                 maximumQuantity);
     }
 
-    private static ArrayList<CookFoodCandidate> foodCandidates(Container container) {
+    static ArrayList<CookFoodCandidate> foodCandidates(Container container) {
         int size = container.getContainerSize();
         var candidates = new ArrayList<CookFoodCandidate>(size);
         for (int slot = 0; slot < size; slot++) {

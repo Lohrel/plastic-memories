@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 public final class OpenAiCompatibleProvider implements AiProvider {
     private static final int MAX_RESPONSE_BYTES = 65_536;
     private static final int MAX_REPLY_LENGTH = 4_096;
+    private static final int DEFAULT_MAX_TOKENS = 512;
 
     private final HttpClient client;
     private final Duration requestTimeout;
@@ -32,19 +33,7 @@ public final class OpenAiCompatibleProvider implements AiProvider {
     @Override
     public CompletableFuture<String> reply(ProviderRequest request) {
         Objects.requireNonNull(request, "request");
-        JsonObject requestJson = new JsonObject();
-        requestJson.addProperty("model", request.settings().model());
-        requestJson.addProperty("max_tokens", 512);
-        // TODO: temperature 0 keeps the REPLY/SKILL format reliable but makes roleplay flat. Revisit with the skill rework.
-        requestJson.addProperty("temperature", 0.0);
-        var messages = new com.google.gson.JsonArray();
-        for (var message : request.messages()) {
-            JsonObject msg = new JsonObject();
-            msg.addProperty("role", message.role());
-            msg.addProperty("content", message.content());
-            messages.add(msg);
-        }
-        requestJson.add("messages", messages);
+        JsonObject requestJson = requestJson(request);
 
         HttpRequest.Builder httpRequest = HttpRequest.newBuilder(request.settings().chatCompletionsEndpoint())
                 .timeout(requestTimeout)
@@ -57,6 +46,29 @@ public final class OpenAiCompatibleProvider implements AiProvider {
 
         return client.sendAsync(httpRequest.build(), HttpResponse.BodyHandlers.ofInputStream())
                 .thenApply(this::readReply);
+    }
+
+    static JsonObject requestJson(ProviderRequest request) {
+        JsonObject requestJson = new JsonObject();
+        requestJson.addProperty("model", request.settings().model());
+        // Keeps replies bounded when the player hasn't chosen a limit.
+        requestJson.addProperty("max_tokens", DEFAULT_MAX_TOKENS);
+        request.settings().sampling().forEach((parameter, value) -> {
+            if (parameter.integer()) {
+                requestJson.addProperty(parameter.wireName(), (long) value.doubleValue());
+            } else {
+                requestJson.addProperty(parameter.wireName(), value);
+            }
+        });
+        var messages = new com.google.gson.JsonArray();
+        for (var message : request.messages()) {
+            JsonObject msg = new JsonObject();
+            msg.addProperty("role", message.role());
+            msg.addProperty("content", message.content());
+            messages.add(msg);
+        }
+        requestJson.add("messages", messages);
+        return requestJson;
     }
 
     private String readReply(HttpResponse<InputStream> response) {

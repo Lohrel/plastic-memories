@@ -52,7 +52,7 @@ public final class LorebookLibraryScreen extends Screen {
     protected void init() {
         ClientLorebookAutoImporter.ImportReport importReport = ClientLorebookAutoImporter.scanAndImport(
                 inbox, library);
-        List<ClientLorebookLibraryStore.ArtifactSummary> artifacts = library.listArtifacts();
+        List<ClientLorebookLibraryStore.ArtifactSummary> artifacts = library.listArtifacts(bindingKey);
         int pageCount = Math.max(1, pageCount(artifacts));
         int visiblePage = Math.min(page, pageCount - 1);
         int top = 36;
@@ -60,7 +60,7 @@ public final class LorebookLibraryScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Refresh"), button -> refresh(Component.empty()))
                 .bounds(20, top, 80, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Unbind NPC"), button -> unbind())
+        addRenderableWidget(Button.builder(Component.literal("Unbind card"), button -> unbind())
                 .bounds(104, top, 100, 20)
                 .build()).active = bindingKey.isPresent();
         if (pageCount > 1) {
@@ -74,13 +74,26 @@ public final class LorebookLibraryScreen extends Screen {
 
         int artifactY = 88;
         for (ClientLorebookLibraryStore.ArtifactSummary artifact : page(artifacts, visiblePage)) {
-            String action = artifact.characterCard()
-                    ? "Bind"
-                    : artifact.globallyActive() ? "Deactivate" : "Activate";
-            Button actionButton = addRenderableWidget(Button.builder(Component.literal(action), button -> updateArtifact(artifact))
-                    .bounds(width - 188, artifactY, 82, 20)
-                    .build());
-            actionButton.active = artifact.activationPossible() && (!artifact.characterCard() || bindingKey.isPresent());
+            if (artifact.characterCard()) {
+                Button bind = addRenderableWidget(Button.builder(Component.literal("Bind to NPC"), button -> bindCard(artifact))
+                        .bounds(width - 188, artifactY, 82, 20)
+                        .build());
+                bind.active = artifact.activationPossible() && bindingKey.isPresent();
+            } else {
+                // A lorebook can be on for every NPC, for just the selected one, or both.
+                Button all = addRenderableWidget(Button.builder(
+                                Component.literal(artifact.globallyActive() ? "All NPCs: On" : "All NPCs: Off"),
+                                button -> toggleGlobal(artifact))
+                        .bounds(width - 274, artifactY, 82, 20)
+                        .build());
+                all.active = artifact.activationPossible();
+                Button thisNpc = addRenderableWidget(Button.builder(
+                                Component.literal(artifact.boundToCurrentNpc() ? "This NPC: On" : "This NPC: Off"),
+                                button -> toggleForNpc(artifact))
+                        .bounds(width - 188, artifactY, 82, 20)
+                        .build());
+                thisNpc.active = artifact.activationPossible() && bindingKey.isPresent();
+            }
             addRenderableWidget(Button.builder(Component.literal("Remove"), button -> removeArtifact(artifact.id()))
                     .bounds(width - 102, artifactY, 82, 20)
                     .build());
@@ -99,21 +112,38 @@ public final class LorebookLibraryScreen extends Screen {
         refresh(Math.max(0, Math.min(requestedPage, pageCount - 1)), Component.empty());
     }
 
-    private void updateArtifact(ClientLorebookLibraryStore.ArtifactSummary artifact) {
-        try {
-            if (artifact.characterCard()) {
-                library.bindCard(bindingKey.orElseThrow(), artifact.id());
-                refresh(Component.literal("Card bound only to the selected local NPC."));
-            } else if (artifact.globallyActive()) {
-                library.deactivateGlobal(artifact.id());
-                refresh(Component.literal("Imported lorebook deactivated for this client."));
-            } else {
-                library.activateGlobal(artifact.id());
-                refresh(Component.literal("Imported lorebook activated only for this client's private prompts."));
-            }
-        } catch (IOException | IllegalArgumentException exception) {
-            refresh(Component.literal("Could not update the local import state."));
+    private void bindCard(ClientLorebookLibraryStore.ArtifactSummary artifact) {
+        update(() -> library.bindCard(bindingKey.orElseThrow(), artifact.id()), "Card bound to the selected NPC.");
+    }
+
+    private void toggleGlobal(ClientLorebookLibraryStore.ArtifactSummary artifact) {
+        if (artifact.globallyActive()) {
+            update(() -> library.deactivateGlobal(artifact.id()), "Lorebook turned off for all NPCs.");
+        } else {
+            update(() -> library.activateGlobal(artifact.id()), "Lorebook turned on for all NPCs.");
         }
+    }
+
+    private void toggleForNpc(ClientLorebookLibraryStore.ArtifactSummary artifact) {
+        if (artifact.boundToCurrentNpc()) {
+            update(() -> library.unbindLorebook(bindingKey.orElseThrow(), artifact.id()), "Lorebook turned off for this NPC.");
+        } else {
+            update(() -> library.bindLorebook(bindingKey.orElseThrow(), artifact.id()), "Lorebook turned on for this NPC.");
+        }
+    }
+
+    private void update(LibraryChange change, String success) {
+        try {
+            change.apply();
+            refresh(Component.literal(success));
+        } catch (IOException | RuntimeException exception) {
+            refresh(Component.literal("Could not update the library."));
+        }
+    }
+
+    @FunctionalInterface
+    private interface LibraryChange {
+        void apply() throws IOException;
     }
 
     private void unbind() {
@@ -163,15 +193,20 @@ public final class LorebookLibraryScreen extends Screen {
     }
 
     private void drawArtifacts(GuiGraphics graphics) {
-        List<ClientLorebookLibraryStore.ArtifactSummary> artifacts = library.listArtifacts();
+        List<ClientLorebookLibraryStore.ArtifactSummary> artifacts = library.listArtifacts(bindingKey);
         int visiblePage = Math.min(page, Math.max(0, pageCount(artifacts) - 1));
         int y = 88;
         for (ClientLorebookLibraryStore.ArtifactSummary artifact : page(artifacts, visiblePage)) {
-            String state = artifact.globallyActive()
-                    ? "active"
-                    : artifact.boundToAnyCard() ? "bound" : "inactive";
+            String state;
             if (!artifact.activationPossible()) {
                 state = "unavailable";
+            } else if (artifact.characterCard()) {
+                state = artifact.boundToAnyCard() ? "bound" : "not bound";
+            } else {
+                state = artifact.globallyActive() || artifact.boundToCurrentNpc() ? "on" : "off";
+            }
+            if (artifact.skippedEntryCount() > 0) {
+                state += " · " + artifact.skippedEntryCount() + " skipped";
             }
             graphics.drawString(
                     font,
@@ -215,6 +250,7 @@ public final class LorebookLibraryScreen extends Screen {
     }
 
     private static String abbreviated(String value) {
-        return value.length() <= 34 ? value : value.substring(0, 31) + "...";
+        // Short enough to leave room for three buttons at small GUI scales.
+        return value.length() <= 22 ? value : value.substring(0, 19) + "...";
     }
 }

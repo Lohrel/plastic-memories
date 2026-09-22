@@ -8,5 +8,7 @@ public enum NpcProfileResultCode {
     OUT_OF_RANGE,
     PERMISSION_DENIED,
     RATE_LIMITED,
-    REPLAYED
+    REPLAYED,
+    /** The world's profile data is from a newer mod version; see NpcProfilesSavedData. */
+    STORAGE_READ_ONLY
 }

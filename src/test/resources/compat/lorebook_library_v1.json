@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "id": "93dde1d1-9ca9-41e0-a29f-75cfa5140256",
+      "format": "CLASSIC_WORLD_INFO",
+      "profile": "SILLY_TAVERN",
+      "sourceFilename": "world.json",
+      "acceptedEntryCount": 1,
+      "rejectedEntryCount": 0,
+      "activationPossible": true,
+      "diagnostics": [],
+      "lorebook": {
+        "format": "CLASSIC_WORLD_INFO",
+        "profile": "SILLY_TAVERN",
+        "sourceVersion": 0,
+        "defaultScanDepth": 3,
+        "recursiveScanning": false,
+        "maxRecursionSteps": 0,
+        "entries": [
+          {
+            "id": "0",
+            "sourceOrder": 0,
+            "primaryKeys": [
+              "dragon"
+            ],
+            "secondaryKeys": [],
+            "content": "Dragons sleep under the mountain.",
+            "order": 100,
+            "enabled": true,
+            "constant": false,
+            "selective": true,
+            "secondaryKeyLogic": "AND_ANY",
+            "matchOptions": {
+              "caseSensitive": false,
+              "wholeWord": false,
+              "regex": false,
+              "scanDepth": 3
+            },
+            "insertion": {
+              "sourcePosition": 0,
+              "depth": 0,
+              "role": "SYSTEM",
+              "outletName": ""
+            },
+            "activationState": {
+              "probabilityPercent": 100,
+              "stickyTurns": 0,
+              "cooldownTurns": 0,
+              "delayTurns": 0,
+              "group": "",
+              "groupWeight": 100
+            },
+            "recursionOptions": {
+              "recursive": false,
+              "preventRecursion": false,
+              "excludeRecursion": false,
+              "delayUntilRecursion": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "46d1d9e4-b722-4ddb-a7d2-111b8f92367d",
+      "format": "CHARACTER_CARD_V2",
+      "profile": "SILLY_TAVERN",
+      "sourceFilename": "warden.json",
+      "acceptedEntryCount": 1,
+      "rejectedEntryCount": 0,
+      "activationPossible": true,
+      "diagnostics": [],
+      "card": {
+        "name": "Warden",
+        "description": "Keeps the gate.",
+        "personality": "Stern.",
+        "scenario": "At the gate.",
+        "firstMessage": "Halt.",
+        "alternateGreetings": [],
+        "exampleDialogue": "",
+        "creator": "",
+        "creatorVersion": "",
+        "tags": [],
+        "systemPrompt": "",
+        "postHistoryInstructions": "",
+        "creatorNotes": "",
+        "nickname": "",
+        "sourceMetadataJson": [],
+        "assetDescriptorsJson": [],
+        "sourceExtensionsJson": "",
+        "embeddedLorebook": {
+          "format": "CHARACTER_CARD_V2",
+          "profile": "SILLY_TAVERN",
+          "sourceVersion": 0,
+          "defaultScanDepth": 3,
+          "recursiveScanning": false,
+          "maxRecursionSteps": 0,
+          "entries": [
+            {
+              "id": "1",
+              "sourceOrder": 0,
+              "primaryKeys": [
+                "gate"
+              ],
+              "secondaryKeys": [],
+              "content": "The gate is old.",
+              "order": 10,
+              "enabled": true,
+              "constant": false,
+              "selective": false,
+              "secondaryKeyLogic": "AND_ANY",
+              "matchOptions": {
+                "caseSensitive": false,
+                "wholeWord": false,
+                "regex": false,
+                "scanDepth": 3
+              },
+              "insertion": {
+                "sourcePosition": 0,
+                "depth": 0,
+                "role": "SYSTEM",
+                "outletName": ""
+              },
+              "activationState": {
+                "probabilityPercent": 100,
+                "stickyTurns": 0,
+                "cooldownTurns": 0,
+                "delayTurns": 0,
+                "group": "",
+                "groupWeight": 1
+              },
+              "recursionOptions": {
+                "recursive": false,
+                "preventRecursion": false,
+                "excludeRecursion": false,
+                "delayUntilRecursion": false
+              }
+            }
+          ]
+        }
+      },
+      "lorebook": {
+        "format": "CHARACTER_CARD_V2",
+        "profile": "SILLY_TAVERN",
+        "sourceVersion": 0,
+        "defaultScanDepth": 3,
+        "recursiveScanning": false,
+        "maxRecursionSteps": 0,
+        "entries": [
+          {
+            "id": "1",
+            "sourceOrder": 0,
+            "primaryKeys": [
+              "gate"
+            ],
+            "secondaryKeys": [],
+            "content": "The gate is old.",
+            "order": 10,
+            "enabled": true,
+            "constant": false,
+            "selective": false,
+            "secondaryKeyLogic": "AND_ANY",
+            "matchOptions": {
+              "caseSensitive": false,
+              "wholeWord": false,
+              "regex": false,
+              "scanDepth": 3
+            },
+            "insertion": {
+              "sourcePosition": 0,
+              "depth": 0,
+              "role": "SYSTEM",
+              "outletName": ""
+            },
+            "activationState": {
+              "probabilityPercent": 100,
+              "stickyTurns": 0,
+              "cooldownTurns": 0,
+              "delayTurns": 0,
+              "group": "",
+              "groupWeight": 1
+            },
+            "recursionOptions": {
+              "recursive": false,
+              "preventRecursion": false,
+              "excludeRecursion": false,
+              "delayUntilRecursion": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "globalActive": [
+    "93dde1d1-9ca9-41e0-a29f-75cfa5140256"
+  ],
+  "bindings": [
+    {
+      "worldIdentity": "singleplayer:/worlds/Test",
+      "playerId": "00000000-0000-0000-0000-00000000000a",
+      "npcId": "00000000-0000-0000-0000-000000000001",
+      "artifactId": "46d1d9e4-b722-4ddb-a7d2-111b8f92367d"
+    }
+  ]
+}

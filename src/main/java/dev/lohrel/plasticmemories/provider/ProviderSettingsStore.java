@@ -1,15 +1,11 @@
 package dev.lohrel.plasticmemories.provider;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import dev.lohrel.plasticmemories.storage.PrivateJsonFile;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.PosixFilePermission;
+import java.util.EnumMap;
 import java.util.Optional;
 import java.util.Set;
 
@@ -17,8 +13,7 @@ import java.util.Set;
 public final class ProviderSettingsStore {
     private static final int FORMAT_VERSION = 1;
     private static final long MAX_FILE_BYTES = 16_384;
-    private static final Set<PosixFilePermission> OWNER_READ_WRITE = Set.of(
-            PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
+    private static final Set<String> KNOWN_FIELDS = Set.of("version", "endpoint", "model", "apiKey", "sampling");
 
     private final Path file;
 
@@ -27,55 +22,49 @@ public final class ProviderSettingsStore {
     }
 
     public Optional<ProviderSettings> load() {
-        try {
-            if (!Files.isRegularFile(file) || Files.size(file) > MAX_FILE_BYTES) {
-                return Optional.empty();
-            }
-            JsonObject json = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
-            if (json.get("version").getAsInt() != FORMAT_VERSION) {
-                return Optional.empty();
-            }
-            return Optional.of(ProviderSettings.create(
-                    json.get("endpoint").getAsString(),
-                    json.get("model").getAsString(),
-                    json.get("apiKey").getAsString()));
-        } catch (IOException | RuntimeException exception) {
-            return Optional.empty();
-        }
+        return PrivateJsonFile.read(file, MAX_FILE_BYTES, ProviderSettingsStore::parse);
     }
 
     public void save(ProviderSettings settings) throws IOException {
-        Path parent = file.getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
-
         JsonObject json = new JsonObject();
         json.addProperty("version", FORMAT_VERSION);
         json.addProperty("endpoint", settings.endpoint().toString());
         json.addProperty("model", settings.model());
         json.addProperty("apiKey", settings.apiKey());
-
-        Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.writeString(
-                temporary,
-                json.toString(),
-                StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.TRUNCATE_EXISTING,
-                StandardOpenOption.WRITE);
-        restrictPermissions(temporary);
-        try {
-            Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException exception) {
-            Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
-        }
-        restrictPermissions(file);
+        JsonObject sampling = new JsonObject();
+        settings.sampling().forEach((parameter, value) -> sampling.addProperty(parameter.wireName(), value));
+        json.add("sampling", sampling);
+        // Keep fields a newer build wrote, so downgrading and saving doesn't strip them.
+        PrivateJsonFile.read(file, MAX_FILE_BYTES, existing -> existing).ifPresent(existing -> {
+            for (String key : existing.keySet()) {
+                if (!KNOWN_FIELDS.contains(key)) {
+                    json.add(key, existing.get(key));
+                }
+            }
+        });
+        PrivateJsonFile.write(file, json.toString());
     }
 
-    private static void restrictPermissions(Path path) throws IOException {
-        if (Files.getFileStore(path).supportsFileAttributeView("posix")) {
-            Files.setPosixFilePermissions(path, OWNER_READ_WRITE);
+    private static ProviderSettings parse(JsonObject json) {
+        PrivateJsonFile.requireVersion(json, FORMAT_VERSION);
+        // "sampling" was added after v1 shipped; unknown or invalid values are dropped one by one.
+        EnumMap<SamplingParameter, Double> sampling = new EnumMap<>(SamplingParameter.class);
+        JsonElement stored = json.get("sampling");
+        if (stored != null && stored.isJsonObject()) {
+            for (String key : stored.getAsJsonObject().keySet()) {
+                SamplingParameter.fromWireName(key).ifPresent(parameter -> {
+                    try {
+                        sampling.put(parameter, parameter.validate(stored.getAsJsonObject().get(key).getAsDouble()));
+                    } catch (RuntimeException ignored) {
+                        // Leave this one unset.
+                    }
+                });
+            }
         }
+        return ProviderSettings.create(
+                json.get("endpoint").getAsString(),
+                json.get("model").getAsString(),
+                json.get("apiKey").getAsString())
+                .withSampling(sampling);
     }
 }

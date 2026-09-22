@@ -13,13 +13,12 @@ import dev.lohrel.plasticmemories.lorebook.LocalLorebookBindingKey;
 import dev.lohrel.plasticmemories.memory.ConversationMemory;
 import dev.lohrel.plasticmemories.memory.ConversationMemoryKey;
 import dev.lohrel.plasticmemories.memory.ConversationMemoryStore;
-import dev.lohrel.plasticmemories.network.NpcCapabilityClientInbox;
 import dev.lohrel.plasticmemories.network.NpcCapabilityRequestPayload;
-import dev.lohrel.plasticmemories.network.NpcProfileClientInbox;
 import dev.lohrel.plasticmemories.network.NpcProfileRequestPayload;
 import dev.lohrel.plasticmemories.network.NpcProfileResponse;
 import dev.lohrel.plasticmemories.network.NpcProfileResultCode;
 import dev.lohrel.plasticmemories.network.NpcProfileUpdatePayload;
+import dev.lohrel.plasticmemories.network.PendingNpcRequests;
 import dev.lohrel.plasticmemories.network.SkillRequestPayload;
 import dev.lohrel.plasticmemories.npc.CookAvailability;
 import dev.lohrel.plasticmemories.npc.NpcProfile;
@@ -53,8 +52,8 @@ public final class ConversationOrchestrator {
     private final ConversationState conversation = new ConversationState();
     private final AiProvider provider;
     private final PromptBuilder promptBuilder;
-    private final NpcCapabilityClientInbox capabilityInbox;
-    private final NpcProfileClientInbox profileInbox;
+    private final PendingNpcRequests<CookAvailability> capabilityInbox;
+    private final PendingNpcRequests<NpcProfileResponse> profileInbox;
     private final AtomicLong nextRequestId = new AtomicLong(1);
     private ClientLorebookLibraryStore lorebookLibrary;
     private ClientLorebookRequestContextLoader lorebookContextLoader;
@@ -63,15 +62,15 @@ public final class ConversationOrchestrator {
     public ConversationOrchestrator() {
         this.provider = new OpenAiCompatibleProvider(Duration.ofSeconds(30));
         this.promptBuilder = new PromptBuilder();
-        this.capabilityInbox = NpcCapabilityClientInbox.shared();
-        this.profileInbox = NpcProfileClientInbox.shared();
+        this.capabilityInbox = PendingNpcRequests.COOK_AVAILABILITY;
+        this.profileInbox = PendingNpcRequests.PROFILES;
     }
 
     public ConversationOrchestrator(
             AiProvider provider,
             PromptBuilder promptBuilder,
-            NpcCapabilityClientInbox capabilityInbox,
-            NpcProfileClientInbox profileInbox) {
+            PendingNpcRequests<CookAvailability> capabilityInbox,
+            PendingNpcRequests<NpcProfileResponse> profileInbox) {
         this.provider = provider;
         this.promptBuilder = promptBuilder;
         this.capabilityInbox = capabilityInbox;
@@ -369,10 +368,7 @@ public final class ConversationOrchestrator {
 
     private ClientLorebookLibraryStore lorebookLibraryStore() {
         if (lorebookLibrary == null) {
-            Path path = Minecraft.getInstance().gameDirectory.toPath()
-                    .resolve("config")
-                    .resolve(PlasticMemories.MOD_ID)
-                    .resolve("lorebook-library");
+            Path path = configDirectory().resolve("lorebook-library");
             lorebookLibrary = new ClientLorebookLibraryStore(path);
         }
         return lorebookLibrary;
@@ -386,10 +382,7 @@ public final class ConversationOrchestrator {
     }
 
     private ClientLorebookInbox lorebookInbox() {
-        Path path = Minecraft.getInstance().gameDirectory.toPath()
-                .resolve("config")
-                .resolve(PlasticMemories.MOD_ID)
-                .resolve("lorebook-inbox");
+        Path path = configDirectory().resolve("lorebook-inbox");
         return new ClientLorebookInbox(path);
     }
 
@@ -455,19 +448,18 @@ public final class ConversationOrchestrator {
     }
 
     private ConversationMemoryStore memoryStore() {
-        Path path = Minecraft.getInstance().gameDirectory.toPath()
-                .resolve("config")
-                .resolve(PlasticMemories.MOD_ID)
-                .resolve("private-memories");
+        Path path = configDirectory().resolve("private-memories");
         return new ConversationMemoryStore(path);
     }
 
     private ProviderSettingsStore providerSettingsStore() {
-        Path path = Minecraft.getInstance().gameDirectory.toPath()
-                .resolve("config")
-                .resolve(PlasticMemories.MOD_ID)
-                .resolve("provider.json");
+        Path path = configDirectory().resolve("provider.json");
         return new ProviderSettingsStore(path);
+    }
+
+    /** config/plastic_memories/, where everything this client stores lives. */
+    private static Path configDirectory() {
+        return Minecraft.getInstance().gameDirectory.toPath().resolve("config").resolve(PlasticMemories.MOD_ID);
     }
 
     private static String profileResultMessage(NpcProfileResultCode result) {
@@ -479,6 +471,7 @@ public final class ConversationOrchestrator {
             case PERMISSION_DENIED -> "Only server operators or the LAN host can edit this profile.";
             case RATE_LIMITED -> "Wait before requesting the character profile again.";
             case REPLAYED -> "Duplicate character profile request rejected.";
+            case STORAGE_READ_ONLY -> "Profiles are read-only: this world was saved by a newer Plastic Memories version.";
         };
     }
 

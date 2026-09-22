@@ -6,8 +6,8 @@ This document defines the client-local import contract from ADR 008. It is the a
 
 | Profile | Initial execution target |
 | --- | --- |
-| `SILLY_TAVERN` | Current World Info keyword activation, secondary-key logic, disabled/constant entries, scan depth, recursive scanning, ordering, probability, default system-region insertion, and supported timed effects. Non-default role/depth/outlet insertion is retained but rejected before activation. |
-| `MARINARA` | Parse native versioned exports now. Execute only fields with an implemented equivalent; report the rest before activation. |
+| `SILLY_TAVERN` | World Info keyword activation, secondary-key logic, disabled/constant entries, scan depth, recursive scanning, ordering, probability (respecting `useProbability`), timed effects, and before-character / after-character / at-depth placement. Author's-note, example-message and outlet placements and regex keys are kept but skipped, one entry at a time. |
+| `MARINARA` | Parse native versioned exports. Before / after / at-depth placement uses Marinara's own position numbers. Fields without an implemented equivalent are reported and those entries skipped. |
 
 Profiles are selected automatically from detected format: native Marinara envelopes use `MARINARA`; all other supported card and World Info formats use `SILLY_TAVERN`.
 
@@ -43,6 +43,24 @@ A normalized lorebook contains source metadata, profile, book settings, and a st
 
 Only `constant` is unconditional. A normal entry requires a primary-key match. A selective entry also evaluates its declared secondary-key rule.
 
+## Placement
+
+Positions are interpreted with the numbering of the app that produced the file (checked against both apps' source code):
+
+| Placement | SillyTavern `position` | Marinara `position` | Where it goes |
+| --- | --- | --- | --- |
+| Before character | 0 | 0 | System prompt, before the NPC profile and card |
+| After character | 1 | 1 | System prompt, after the card |
+| At depth | 4 | 2 | Its own chat message with the entry's `role`, `depth` messages from the end (0 = after the newest message) |
+| Unsupported | 2, 3, 5, 6, 7 | 7 and others | Skipped |
+
+`depth` and `role` only matter at depth. Character Card V2/V3 book entries store these settings under `extensions` (and `position` as `"before_char"`/`"after_char"`); the importer reads them the way SillyTavern's `convertCharacterBook` does.
+
+## Activation scope
+
+- A lorebook can be switched on for **all NPCs**, for **one NPC** (one world + player + NPC), or both. It's included once either way.
+- A character card is bound to one NPC; its embedded book comes with it.
+
 ## Character-card model
 
 The client-local card model preserves the V1/V2/V3 card fields needed for prompt construction and user display:
@@ -60,10 +78,15 @@ The card is bound locally to one world/player/NPC tuple. Its embedded book is cl
 
 Prompt construction uses named regions rather than one opaque lore string:
 
-1. Plastic Memories base identity and public NPC profile.
-2. Card narrative fields and supported card-specific directives.
-3. Lorebook regions according to source insertion configuration.
-4. Immutable Plastic Memories response protocol, skill constraints, and safety rules.
+1. Plastic Memories base identity.
+2. Before-character lore.
+3. Public NPC profile, then card narrative fields and supported card-specific directives.
+4. After-character lore.
+5. Immutable Plastic Memories response protocol, skill constraints, and safety rules.
+
+At-depth lore is inserted into the chat history instead. Within a placement, the highest-priority entry sits closest to the conversation.
+
+Lore has a budget (32 entries, 16,384 characters). Like SillyTavern, entries are taken highest `order` first and the rest are left out for that message; the message is never refused because of it. Sticky and cooldown timers only start for entries that were actually sent.
 
 Imported content is delimited as card/lore data. It may shape characterization but cannot override the final protocol.
 
@@ -76,7 +99,8 @@ Every import produces a structured result with:
 - accepted entry count;
 - rejected-entry count and stable diagnostic codes;
 - explicit warnings for unsupported runtime features;
-- whether activation is possible.
+- how many entries will be skipped (malformed, unsupported placement, or regex);
+- whether activation is possible. It is only impossible when the file itself couldn't be read; problems with single entries skip those entries.
 
 No silent truncation, key duplication, semantic downgrade, or conversion to constants is permitted.
 

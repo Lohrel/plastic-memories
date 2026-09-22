@@ -29,45 +29,25 @@ public final class LorebookImporter {
         try {
             input = readBoundedBytes(file);
         } catch (InputTooLargeException exception) {
-            return LorebookImportResult.rejected(
-                    LorebookSourceFormat.UNSUPPORTED,
-                    CompatibilityProfile.SILLY_TAVERN,
-                    sourceFilename,
-                    LorebookImportDiagnosticCode.INPUT_TOO_LARGE);
+            return unrecognized(sourceFilename, LorebookImportDiagnosticCode.INPUT_TOO_LARGE);
         } catch (IOException exception) {
-            return LorebookImportResult.rejected(
-                    LorebookSourceFormat.UNSUPPORTED,
-                    CompatibilityProfile.SILLY_TAVERN,
-                    sourceFilename,
-                    LorebookImportDiagnosticCode.INPUT_READ_FAILED);
+            return unrecognized(sourceFilename, LorebookImportDiagnosticCode.INPUT_READ_FAILED);
         }
 
         LorebookArtifactDecoder.DecodedArtifact decoded;
         try {
             decoded = LorebookArtifactDecoder.decode(input);
         } catch (LorebookArtifactDecoder.ArtifactDecodingException exception) {
-            return LorebookImportResult.rejected(
-                    LorebookSourceFormat.UNSUPPORTED,
-                    CompatibilityProfile.SILLY_TAVERN,
-                    sourceFilename,
-                    LorebookImportDiagnosticCode.MALFORMED_CONTAINER);
+            return unrecognized(sourceFilename, LorebookImportDiagnosticCode.MALFORMED_CONTAINER);
         }
         JsonElement root;
         try {
             root = JsonParser.parseString(decoded.json());
         } catch (RuntimeException exception) {
-            return LorebookImportResult.rejected(
-                    LorebookSourceFormat.UNSUPPORTED,
-                    CompatibilityProfile.SILLY_TAVERN,
-                    sourceFilename,
-                    LorebookImportDiagnosticCode.MALFORMED_JSON);
+            return unrecognized(sourceFilename, LorebookImportDiagnosticCode.MALFORMED_JSON);
         }
         if (!root.isJsonObject()) {
-            return LorebookImportResult.rejected(
-                    LorebookSourceFormat.UNSUPPORTED,
-                    CompatibilityProfile.SILLY_TAVERN,
-                    sourceFilename,
-                    LorebookImportDiagnosticCode.INVALID_ROOT);
+            return unrecognized(sourceFilename, LorebookImportDiagnosticCode.INVALID_ROOT);
         }
 
         JsonObject object = root.getAsJsonObject();
@@ -89,7 +69,7 @@ public final class LorebookImporter {
             if (cardArtifact) {
                 JsonObject cardData = cardData(object, format);
                 JsonElement embeddedEntries = findEntries(object);
-                ParsedImportedEntries parsed = analyzeUnsupportedFeatures(parseEntries(embeddedEntries, profile));
+                ParsedImportedEntries parsed = analyzeUnsupportedFeatures(parseEntries(embeddedEntries, profile), profile);
                 Optional<ImportedLorebook> embeddedLorebook = embeddedEntries == null
                         ? Optional.empty()
                         : Optional.of(createImportedLorebook(object, format, profile, parsed.entries()));
@@ -99,7 +79,8 @@ public final class LorebookImporter {
                 if (!characterCard.sourceExtensionsJson().isBlank()) {
                     diagnostics.add(warning(LorebookImportDiagnosticCode.UNKNOWN_SOURCE_EXTENSION));
                 }
-                boolean activationPossible = activationPossible(parsed);
+                // Bad or unsupported entries are skipped one by one (see skippedEntryCount), not the whole file.
+                boolean activationPossible = true;
                 return LorebookImportResult.acceptedCard(
                         format,
                         profile,
@@ -116,9 +97,10 @@ public final class LorebookImporter {
                 return LorebookImportResult.rejected(
                         format, profile, sourceFilename, LorebookImportDiagnosticCode.INVALID_ROOT);
             }
-            ParsedImportedEntries parsed = analyzeUnsupportedFeatures(parseEntries(entries, profile));
+            ParsedImportedEntries parsed = analyzeUnsupportedFeatures(parseEntries(entries, profile), profile);
             ImportedLorebook lorebook = createImportedLorebook(object, format, profile, parsed.entries());
-            boolean activationPossible = activationPossible(parsed);
+            // Bad or unsupported entries are skipped one by one (see skippedEntryCount), not the whole file.
+            boolean activationPossible = true;
             return LorebookImportResult.accepted(
                     format,
                     profile,
@@ -131,6 +113,12 @@ public final class LorebookImporter {
             return LorebookImportResult.rejected(
                     format, profile, sourceFilename, LorebookImportDiagnosticCode.INVALID_ENTRY);
         }
+    }
+
+    /** Rejection before the format is known, so it's reported with the default profile. */
+    private static LorebookImportResult unrecognized(String sourceFilename, LorebookImportDiagnosticCode code) {
+        return LorebookImportResult.rejected(
+                LorebookSourceFormat.UNSUPPORTED, CompatibilityProfile.SILLY_TAVERN, sourceFilename, code);
     }
 
     private static boolean isCharacterCard(LorebookSourceFormat format) {
@@ -236,7 +224,7 @@ public final class LorebookImporter {
             CompatibilityProfile profile,
             List<ImportedLorebookEntry> entries) {
         JsonObject settings = bookSettings(root);
-        int sourceVersion = integerValue(root, 0, "version", "spec_version");
+        int sourceVersion = majorVersion(root);
         int defaultScanDepth = integerValue(settings, LorebookMatchOptions.DEFAULT_SCAN_DEPTH, "scanDepth");
         boolean recursiveScanning = booleanValue(settings, false, "recursiveScanning", "recursive");
         int maxRecursionSteps = integerValue(settings, 0, "maxRecursionSteps", "max_recursion_steps");
@@ -244,28 +232,19 @@ public final class LorebookImporter {
                 format, profile, sourceVersion, defaultScanDepth, recursiveScanning, maxRecursionSteps, entries);
     }
 
-    private static ParsedImportedEntries analyzeUnsupportedFeatures(ParsedImportedEntries parsed) {
+    private static ParsedImportedEntries analyzeUnsupportedFeatures(ParsedImportedEntries parsed, CompatibilityProfile profile) {
         ArrayList<LorebookImportDiagnostic> diagnostics = new ArrayList<>(parsed.diagnostics());
         boolean hasRegex = parsed.entries().stream().anyMatch(entry -> entry.matchOptions().regex());
-        boolean hasUnknownRole = parsed.entries().stream()
-                .anyMatch(entry -> entry.insertion().role() == LorebookPromptRole.UNKNOWN);
-        boolean hasUnsupportedInsertion = parsed.entries().stream()
-                .anyMatch(entry -> !LorebookPromptRegionPlanner.supports(entry.insertion()));
+        boolean hasUnsupportedPlacement = parsed.entries().stream()
+                .anyMatch(entry -> !entry.matchOptions().regex()
+                        && LorebookPlacement.of(profile, entry.insertion()) == LorebookPlacement.UNSUPPORTED);
         if (hasRegex) {
             diagnostics.add(warning(LorebookImportDiagnosticCode.UNSUPPORTED_REGEX));
         }
-        if (hasUnknownRole || hasUnsupportedInsertion) {
+        if (hasUnsupportedPlacement) {
             diagnostics.add(warning(LorebookImportDiagnosticCode.UNSUPPORTED_FEATURE));
         }
         return new ParsedImportedEntries(parsed.entries(), parsed.rejectedEntryCount(), List.copyOf(diagnostics));
-    }
-
-    private static boolean activationPossible(ParsedImportedEntries parsed) {
-        return parsed.rejectedEntryCount() == 0
-                && parsed.diagnostics().stream().noneMatch(
-                        diagnostic -> diagnostic.severity() == LorebookImportDiagnosticSeverity.ERROR
-                                || diagnostic.code() == LorebookImportDiagnosticCode.UNSUPPORTED_REGEX
-                                || diagnostic.code() == LorebookImportDiagnosticCode.UNSUPPORTED_FEATURE);
     }
 
     private static ParsedImportedEntries parseImportedEntries(JsonObject entries, CompatibilityProfile profile) {
@@ -315,6 +294,7 @@ public final class LorebookImporter {
             return false;
         }
         try {
+            entryObj = withCardBookExtensions(entryObj);
             boolean constant = booleanValue(entryObj, false, "constant");
             boolean enabled = entryObj.has("disable")
                     ? !booleanValue(entryObj, false, "disable")
@@ -340,7 +320,10 @@ public final class LorebookImporter {
                     promptRole(entryObj),
                     stringValue(entryObj, "outletName", "outlet_name"));
             LorebookActivationState activationState = new LorebookActivationState(
-                    integerValue(entryObj, 100, "probability"),
+                    // SillyTavern keeps the probability value even while "useProbability" is off.
+                    booleanValue(entryObj, true, "useProbability")
+                            ? integerValue(entryObj, 100, "probability")
+                            : 100,
                     integerValue(entryObj, 0, "sticky", "stickyTurns"),
                     integerValue(entryObj, 0, "cooldown", "cooldownTurns"),
                     integerValue(entryObj, 0, "delay", "delayTurns"),
@@ -372,6 +355,59 @@ public final class LorebookImporter {
             diagnostics.add(error(LorebookImportDiagnosticCode.INVALID_ENTRY));
             return false;
         }
+    }
+
+    /** "version" or "spec_version", which cards write as a string like "2.0". Unreadable values count as 0. */
+    private static int majorVersion(JsonObject root) {
+        for (String key : new String[] {"version", "spec_version"}) {
+            JsonElement value = root.get(key);
+            if (value == null || !value.isJsonPrimitive()) {
+                continue;
+            }
+            try {
+                return (int) Double.parseDouble(value.getAsString());
+            } catch (NumberFormatException ignored) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Character Card V2/V3 book entries keep most SillyTavern settings under "extensions" and use
+     * "before_char"/"after_char" for position. Flatten them into the World Info field names the rest
+     * of the parser reads; extension values win, as in SillyTavern's convertCharacterBook.
+     */
+    private static JsonObject withCardBookExtensions(JsonObject entry) {
+        JsonElement position = entry.get("position");
+        boolean stringPosition = position != null && position.isJsonPrimitive() && position.getAsJsonPrimitive().isString();
+        JsonObject extensions = objectValue(entry, "extensions");
+        if (!stringPosition && extensions == null) {
+            return entry;
+        }
+        JsonObject flat = entry.deepCopy();
+        if (stringPosition) {
+            flat.addProperty("position", "before_char".equals(position.getAsString()) ? 0 : 1);
+        }
+        if (extensions != null) {
+            String[][] renames = {
+                {"position", "position"}, {"depth", "depth"}, {"role", "role"},
+                {"probability", "probability"}, {"useProbability", "useProbability"},
+                {"selectiveLogic", "selectiveLogic"}, {"group", "group"}, {"group_weight", "groupWeight"},
+                {"sticky", "sticky"}, {"cooldown", "cooldown"}, {"delay", "delay"},
+                {"scan_depth", "scanDepth"}, {"case_sensitive", "caseSensitive"},
+                {"match_whole_words", "matchWholeWords"}, {"exclude_recursion", "excludeRecursion"},
+                {"prevent_recursion", "preventRecursion"}, {"delay_until_recursion", "delayUntilRecursion"},
+                {"outlet_name", "outletName"},
+            };
+            for (String[] rename : renames) {
+                JsonElement value = extensions.get(rename[0]);
+                if (value != null && !value.isJsonNull()) {
+                    flat.add(rename[1], value);
+                }
+            }
+        }
+        return flat;
     }
 
     private static JsonObject bookSettings(JsonObject root) {

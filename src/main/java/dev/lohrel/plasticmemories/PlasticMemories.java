@@ -1,6 +1,5 @@
 package dev.lohrel.plasticmemories;
 
-import dev.lohrel.plasticmemories.network.PlasticMemoriesNetwork;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 

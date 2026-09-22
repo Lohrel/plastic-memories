@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "turns": [
+    {"player": "Hello there.", "npc": "Welcome back, traveler."},
+    {"player": "Any news?", "npc": "The miller lost his cat again."}
+  ]
+}

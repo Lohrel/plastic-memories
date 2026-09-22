@@ -1,0 +1,17 @@
+{
+    Version: 1,
+    Profiles: {
+        "00000000-0000-0000-0000-000000000001": {
+            Description: "The village cook.",
+            Personality: "Warm, a little nosy.",
+            Appearance: "Flour on her apron.",
+            Backstory: "Came from the coast after the storm."
+        },
+        "00000000-0000-0000-0000-000000000002": {
+            Description: "",
+            Personality: "",
+            Appearance: "",
+            Backstory: ""
+        }
+    }
+}

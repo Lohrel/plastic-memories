@@ -2,7 +2,9 @@ package dev.lohrel.plasticmemories.client;
 
 import dev.lohrel.plasticmemories.provider.ProviderSettings;
 import dev.lohrel.plasticmemories.provider.ProviderSettingsStore;
+import dev.lohrel.plasticmemories.provider.SamplingParameter;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -21,6 +23,9 @@ public final class ProviderSettingsScreen extends Screen {
     private EditBox model;
     private EditBox apiKey;
     private Component status = Component.empty();
+    // Edited on the sampling sub-screen; saved together with the rest.
+    private Map<SamplingParameter, Double> sampling;
+    private String[] pendingText;
 
     public ProviderSettingsScreen(
             Screen parent, ProviderSettingsStore store, Optional<ProviderSettings> initialSettings) {
@@ -28,6 +33,7 @@ public final class ProviderSettingsScreen extends Screen {
         this.parent = parent;
         this.store = store;
         this.initialSettings = initialSettings;
+        this.sampling = initialSettings.map(ProviderSettings::sampling).orElse(Map.of());
     }
 
     @Override
@@ -52,17 +58,39 @@ public final class ProviderSettingsScreen extends Screen {
         addRenderableWidget(apiKey);
 
         addRenderableWidget(Button.builder(Component.literal("Save"), button -> save())
-                .bounds(width / 2 - 104, 195, 100, 20)
+                .bounds(width / 2 - 158, 195, 100, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("Sampling..."), button -> openSampling())
+                .bounds(width / 2 - 50, 195, 100, 20)
                 .build());
         addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> onClose())
-                .bounds(width / 2 + 4, 195, 100, 20)
+                .bounds(width / 2 + 58, 195, 100, 20)
                 .build());
+        if (pendingText != null) {
+            endpoint.setValue(pendingText[0]);
+            model.setValue(pendingText[1]);
+            apiKey.setValue(pendingText[2]);
+            pendingText = null;
+        }
         setInitialFocus(endpoint);
+    }
+
+    private void openSampling() {
+        if (minecraft == null) {
+            return;
+        }
+        // init() runs again on return and would reset the text boxes, so keep what was typed.
+        String typedEndpoint = endpoint.getValue();
+        String typedModel = model.getValue();
+        String typedKey = apiKey.getValue();
+        minecraft.setScreen(new SamplingSettingsScreen(this, sampling, values -> sampling = values));
+        pendingText = new String[] {typedEndpoint, typedModel, typedKey};
     }
 
     private void save() {
         try {
-            ProviderSettings settings = ProviderSettings.create(endpoint.getValue(), model.getValue(), apiKey.getValue());
+            ProviderSettings settings = ProviderSettings.create(endpoint.getValue(), model.getValue(), apiKey.getValue())
+                    .withSampling(sampling);
             store.save(settings);
             onClose();
         } catch (IllegalArgumentException exception) {

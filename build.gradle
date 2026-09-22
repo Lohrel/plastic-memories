@@ -107,6 +107,12 @@ neoForge {
             sourceSet(sourceSets.main)
         }
     }
+
+    // Puts Minecraft on the unit-test classpath so server code (NBT, SavedData...) can be tested.
+    unitTest {
+        enable()
+        testedMod = mods."${mod_id}"
+    }
 }
 
 // Sets up a dependency configuration called 'localRuntime'.
@@ -196,6 +202,8 @@ dependencies {
 
     compileOnly files(mcaDependencyFile)
     localRuntime files(mcaDependencyFile)
+    // Unit tests boot the mod, which requires MCA.
+    testRuntimeOnly files(mcaDependencyFile)
 }
 
 tasks.named('test', Test).configure {

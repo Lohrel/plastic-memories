@@ -42,3 +42,16 @@ A player-selected remote provider receives active card/lore content in the same 
 - Prompt construction requires named insertion regions rather than one undifferentiated lore block to support source insertion semantics safely.
 - Java/JavaScript semantic differences, including unsupported regex or macro behavior, require explicit profile-specific support or visible rejection; they must never be silently approximated.
 - Import UX belongs to a client-only screen or local file inbox, not a client command path that could fall through to the Minecraft server.
+
+## Amendment (2026-09-22): skip entries, not files
+
+Testing with real SillyTavern exports showed the original rule, "reject activation if any entry uses an unsupported feature", made most real lorebooks unusable (default exports store `depth: 4` on every entry, and large books almost always contain one at-depth or author's-note entry).
+
+The contract is now applied **per entry**:
+
+- Before-character, after-character and at-depth placement execute according to the source profile (see INTEROPERABILITY.md, *Placement*). SillyTavern and Marinara use different position numbers.
+- An entry that is malformed, uses an unsupported placement, or uses regex keys is kept in storage, reported in the import diagnostics, counted in the library screen ("N skipped"), and never reaches a prompt. The rest of the file can still be activated.
+- Lore that doesn't fit the prompt budget is left out for that message, highest `order` first, as SillyTavern does. A prompt is never refused because of lore size.
+- Lorebooks can be activated for all NPCs or for single NPCs (world + player + NPC).
+
+Nothing is silently approximated: an entry either runs with its source semantics or is visibly skipped.

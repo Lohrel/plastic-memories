@@ -24,7 +24,7 @@ public final class ClientLorebookRequestContextLoader {
         Objects.requireNonNull(key, "key");
         int rememberedTurns = memory == null ? 0 : memory.turns().size();
         ScopedEvaluator scoped = evaluatorFor(key, rememberedTurns);
-        return ImportedLorebookPromptContextFactory.create(
+        return ImportedPromptContextResolver.resolve(
                 library.activeContext(key), memory, currentMessage, scoped.evaluator(), scoped.nextMessageCount());
     }
 

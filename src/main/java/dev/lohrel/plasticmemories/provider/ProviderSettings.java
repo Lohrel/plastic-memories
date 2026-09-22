@@ -1,11 +1,14 @@
 package dev.lohrel.plasticmemories.provider;
 
 import java.net.URI;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
-/** Endpoint, model and API key the player configured. */
-public record ProviderSettings(URI endpoint, String model, String apiKey) {
+/** Endpoint, model, API key and optional sampling settings the player configured. */
+public record ProviderSettings(URI endpoint, String model, String apiKey, Map<SamplingParameter, Double> sampling) {
     public static final int MAX_ENDPOINT_LENGTH = 2048;
     public static final int MAX_MODEL_LENGTH = 128;
     public static final int MAX_API_KEY_LENGTH = 4096;
@@ -14,6 +17,15 @@ public record ProviderSettings(URI endpoint, String model, String apiKey) {
         Objects.requireNonNull(endpoint, "endpoint");
         Objects.requireNonNull(model, "model");
         Objects.requireNonNull(apiKey, "apiKey");
+        EnumMap<SamplingParameter, Double> validated = new EnumMap<>(SamplingParameter.class);
+        Objects.requireNonNull(sampling, "sampling").forEach((parameter, value) ->
+                validated.put(parameter, parameter.validate(value)));
+        sampling = Collections.unmodifiableMap(validated);
+    }
+
+    /** Same settings with these sampling values instead; parameters not in the map are unset. */
+    public ProviderSettings withSampling(Map<SamplingParameter, Double> sampling) {
+        return new ProviderSettings(endpoint, model, apiKey, sampling);
     }
 
     public static ProviderSettings create(String endpointText, String modelText, String apiKey) {
@@ -50,7 +62,7 @@ public record ProviderSettings(URI endpoint, String model, String apiKey) {
             throw new IllegalArgumentException("Remote endpoints must use HTTPS; HTTP is allowed only for loopback hosts.");
         }
 
-        return new ProviderSettings(endpoint, model, apiKey);
+        return new ProviderSettings(endpoint, model, apiKey, Map.of());
     }
 
     /** Accepts either a base URL (".../v1") or the full ".../chat/completions" URL. */

@@ -25,6 +25,15 @@ Before changing code, read `README.md`, `docs/PRODUCT.md`, `docs/ARCHITECTURE.md
 - Fail closed: malformed model output becomes `NONE`; invalid packets make no world change.
 - Never weaken privacy or server validation to simplify a test.
 
+## Saved data compatibility
+
+Players must never lose data because the mod was updated or downgraded.
+
+- Every persisted format has a `version`. Each released version has a frozen fixture under `src/test/resources/compat/` and a test that loads it. Never edit a fixture; if a change breaks one, write a migration.
+- Adding an optional field needs no version bump. NPC profiles, the lorebook library and provider settings carry unknown fields through load and save so an older build doesn't strip them; do the same for any new store.
+- Renaming, removing, or changing the meaning of a field needs a version bump, a migration from every older version, and a new fixture.
+- A file this build can't read (corrupt, newer version) is never overwritten: server data becomes read-only, client files are set aside as `*.unreadable-<timestamp>`.
+
 ## Comments
 
 Write comments for a human maintainer reading the code for the first time.

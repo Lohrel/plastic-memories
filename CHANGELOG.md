@@ -14,6 +14,11 @@ All notable changes to Plastic Memories are tracked here. Changes under `[Unrele
 - Private prompt integration for activated lorebooks and locally bound character cards.
 - Persistence migration for libraries created with the removed legacy profile names.
 
+- Lorebooks can be switched on for a single NPC, in addition to all NPCs.
+- At-depth lore placement, inserted into the chat history like SillyTavern and Marinara.
+- Optional sampling settings (temperature, top P/K, min P, penalties, max tokens), sent only when set.
+- Compatibility fixtures for every saved format, and migration support for NPC profile data.
+
 ### Changed
 
 - Lorebook-library UI now focuses on activation, deactivation, binding, removal, and refresh instead of manual per-file importing.
@@ -22,7 +27,18 @@ All notable changes to Plastic Memories are tracked here. Changes under `[Unrele
 - Client conversation orchestration now owns provider, memory, profile, skill, and lorebook request flow in one client-side coordinator.
 - Gradle now resolves the pinned MCA Reborn dependency into ignored build output with checksum verification instead of requiring a local `run/mods` JAR.
 
+- The mod now defaults to the provider's own temperature instead of forcing 0.
+- Lorebook entries with unsupported placements or regex keys are skipped one by one instead of blocking the whole lorebook.
+- Lore over the prompt budget is trimmed by priority instead of failing the message.
+
 ### Fixed
+
+- Character cards with `spec_version` (every real V2/V3 card) and a character book were rejected.
+- Character-book entry settings stored under `extensions` (position, depth, role, probability, groups, timing) were ignored.
+- SillyTavern positions were read with Marinara's numbering, and `depth` blocked before-character entries.
+- `useProbability: false` was ignored.
+- Unreadable, corrupt, or newer-version save files could be overwritten with empty data. NPC profile data from a newer version is now kept read-only.
+- NPC profile data no longer passes through vanilla's level data fixer.
 
 - Marinara prompt roles now accept both numeric values and string names such as `system`, `user`, and `assistant`.
 - Imported lorebooks preserve keyed entries, secondary-key behavior, disabled/constant state, insertion metadata, timed activation data, and recursion controls instead of flattening them silently.

@@ -166,6 +166,7 @@ public final class NpcProfileScreen extends Screen {
             case PERMISSION_DENIED -> "Only server operators or the LAN host can edit this profile.";
             case RATE_LIMITED -> "Wait before saving again.";
             case REPLAYED -> "Duplicate profile update rejected.";
+            case STORAGE_READ_ONLY -> "Profiles are read-only: this world was saved by a newer Plastic Memories version.";
         };
     }
 

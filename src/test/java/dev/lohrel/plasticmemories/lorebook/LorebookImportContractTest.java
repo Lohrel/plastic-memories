@@ -140,7 +140,9 @@ final class LorebookImportContractTest {
         assertTrue(entry.recursionOptions().preventRecursion());
         assertFalse(entry.recursionOptions().excludeRecursion());
         assertTrue(entry.recursionOptions().delayUntilRecursion());
-        assertFalse(result.activationPossible());
+        // Position 2 is SillyTavern's author's-note placement: kept, reported, and skipped on its own.
+        assertTrue(result.activationPossible());
+        assertEquals(1, result.skippedEntryCount());
         assertTrue(result.diagnostics().stream()
                 .anyMatch(diagnostic -> diagnostic.code() == LorebookImportDiagnosticCode.UNSUPPORTED_FEATURE));
     }
@@ -166,7 +168,7 @@ final class LorebookImportContractTest {
     }
 
     @Test
-    void rejectsActivationWhenAJavaScriptRegexWouldNeedSilentSemanticApproximation() throws Exception {
+    void skipsRegexEntriesInsteadOfApproximatingJavaScriptRegex() throws Exception {
         Path source = tempDir.resolve("regex.json");
         Files.writeString(source, """
                 {
@@ -180,7 +182,7 @@ final class LorebookImportContractTest {
 
         LorebookImportResult result = LorebookImporter.importArtifact(source);
 
-        assertFalse(result.activationPossible());
+        assertEquals(1, result.skippedEntryCount());
         assertTrue(result.diagnostics().stream()
                 .anyMatch(diagnostic -> diagnostic.code() == LorebookImportDiagnosticCode.UNSUPPORTED_REGEX));
     }

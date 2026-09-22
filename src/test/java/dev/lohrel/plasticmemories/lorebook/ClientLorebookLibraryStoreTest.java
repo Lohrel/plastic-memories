@@ -1,11 +1,13 @@
 package dev.lohrel.plasticmemories.lorebook;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -90,5 +92,114 @@ final class ClientLorebookLibraryStoreTest {
         LorebookImportResult result = LorebookImporter.importArtifact(file);
         assertTrue(result.activationPossible());
         return result;
+    }
+
+    @Test
+    void unreadableLibraryIsSetAsideInsteadOfBeingOverwrittenByTheNextImport() throws Exception {
+        Path libraryDirectory = tempDir.resolve("library");
+        Files.createDirectories(libraryDirectory);
+        Files.writeString(libraryDirectory.resolve("library.json"), "{\"version\":99,\"artifacts\":[]}");
+        ClientLorebookLibraryStore store = new ClientLorebookLibraryStore(libraryDirectory);
+
+        assertTrue(store.listArtifacts().isEmpty());
+        store.store(importJson("new.json", """
+                {"entries":[{"id":"new","keys":["new"],"content":"New lore."}]}
+                """));
+
+        try (var files = Files.list(libraryDirectory)) {
+            List<Path> setAside = files
+                    .filter(path -> path.getFileName().toString().startsWith("library.json.unreadable-"))
+                    .toList();
+            assertEquals(1, setAside.size());
+            assertEquals("{\"version\":99,\"artifacts\":[]}", Files.readString(setAside.getFirst()));
+        }
+    }
+
+    // Frozen copy of the v1 file format. Never edit the fixture: if this breaks, add a migration.
+    @Test
+    void version1LibrariesStillLoad() throws Exception {
+        Path libraryDirectory = tempDir.resolve("library");
+        Files.createDirectories(libraryDirectory);
+        try (var fixture = getClass().getResourceAsStream("/compat/lorebook_library_v1.json")) {
+            Files.write(libraryDirectory.resolve("library.json"), fixture.readAllBytes());
+        }
+        ClientLorebookLibraryStore store = new ClientLorebookLibraryStore(libraryDirectory);
+        LocalLorebookBindingKey boundNpc = new LocalLorebookBindingKey(
+                "singleplayer:/worlds/Test",
+                UUID.fromString("00000000-0000-0000-0000-00000000000a"),
+                UUID.fromString("00000000-0000-0000-0000-000000000001"));
+
+        assertEquals(2, store.listArtifacts().size());
+        ClientLorebookContext context = store.activeContext(boundNpc);
+        assertEquals("Warden", context.card().orElseThrow().name());
+        assertEquals(List.of("The gate is old.", "Dragons sleep under the mountain."), context.lorebooks().stream()
+                .flatMap(book -> book.entries().stream())
+                .map(ImportedLorebookEntry::content)
+                .toList());
+    }
+
+    @Test
+    void lorebookBoundToOneNpcIsActiveOnlyForThatNpc() throws Exception {
+        ClientLorebookLibraryStore store = new ClientLorebookLibraryStore(tempDir.resolve("library"));
+        UUID id = store.store(importJson("village.json", """
+                {"entries":[{"id":"village","keys":["village"],"content":"Village lore."}]}
+                """));
+        LocalLorebookBindingKey miller = new LocalLorebookBindingKey("singleplayer:example", UUID.randomUUID(), UUID.randomUUID());
+        LocalLorebookBindingKey baker = new LocalLorebookBindingKey("singleplayer:example", miller.playerId(), UUID.randomUUID());
+
+        store.bindLorebook(miller, id);
+
+        ClientLorebookLibraryStore reloaded = new ClientLorebookLibraryStore(tempDir.resolve("library"));
+        assertEquals(1, reloaded.activeContext(miller).lorebooks().size());
+        assertTrue(reloaded.activeContext(baker).lorebooks().isEmpty());
+        assertTrue(reloaded.listArtifacts(Optional.of(miller)).getFirst().boundToCurrentNpc());
+        assertFalse(reloaded.listArtifacts(Optional.of(baker)).getFirst().boundToCurrentNpc());
+
+        reloaded.unbindLorebook(miller, id);
+        assertTrue(reloaded.activeContext(miller).lorebooks().isEmpty());
+    }
+
+    @Test
+    void lorebookThatIsBothGlobalAndNpcBoundIsIncludedOnce() throws Exception {
+        ClientLorebookLibraryStore store = new ClientLorebookLibraryStore(tempDir.resolve("library"));
+        UUID id = store.store(importJson("village.json", """
+                {"entries":[{"id":"village","keys":["village"],"content":"Village lore."}]}
+                """));
+        LocalLorebookBindingKey key = new LocalLorebookBindingKey("singleplayer:example", UUID.randomUUID(), UUID.randomUUID());
+
+        store.activateGlobal(id);
+        store.bindLorebook(key, id);
+
+        assertEquals(1, store.activeContext(key).lorebooks().size());
+    }
+
+    @Test
+    void removingALorebookAlsoRemovesItsNpcBindings() throws Exception {
+        ClientLorebookLibraryStore store = new ClientLorebookLibraryStore(tempDir.resolve("library"));
+        UUID id = store.store(importJson("village.json", """
+                {"entries":[{"id":"village","keys":["village"],"content":"Village lore."}]}
+                """));
+        LocalLorebookBindingKey key = new LocalLorebookBindingKey("singleplayer:example", UUID.randomUUID(), UUID.randomUUID());
+        store.bindLorebook(key, id);
+
+        store.remove(id);
+
+        String saved = Files.readString(tempDir.resolve("library").resolve("library.json"));
+        assertFalse(saved.contains(id.toString()));
+    }
+
+    @Test
+    void unknownTopLevelFieldsSurviveASave() throws Exception {
+        Path libraryDirectory = tempDir.resolve("library");
+        Files.createDirectories(libraryDirectory);
+        Files.writeString(libraryDirectory.resolve("library.json"),
+                "{\"version\":1,\"artifacts\":[],\"globalActive\":[],\"bindings\":[],\"fromTheFuture\":{\"x\":1}}");
+        ClientLorebookLibraryStore store = new ClientLorebookLibraryStore(libraryDirectory);
+
+        store.store(importJson("new.json", """
+                {"entries":[{"id":"new","keys":["new"],"content":"New lore."}]}
+                """));
+
+        assertTrue(Files.readString(libraryDirectory.resolve("library.json")).contains("\"fromTheFuture\":{\"x\":1}"));
     }
 }

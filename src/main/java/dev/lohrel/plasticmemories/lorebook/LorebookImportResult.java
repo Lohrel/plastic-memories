@@ -85,4 +85,20 @@ public record LorebookImportResult(
                 List.of(new LorebookImportDiagnostic(code, LorebookImportDiagnosticSeverity.ERROR)),
                 false);
     }
+
+    /** Entries that will never reach a prompt: malformed ones plus unsupported placements and regex. */
+    public int skippedEntryCount() {
+        int unsupported = 0;
+        Optional<ImportedLorebook> book = lorebook.isPresent()
+                ? lorebook
+                : characterCard.flatMap(ImportedCharacterCard::embeddedLorebook);
+        if (book.isPresent()) {
+            for (ImportedLorebookEntry entry : book.orElseThrow().entries()) {
+                if (LorebookPlacement.of(book.orElseThrow().profile(), entry) == LorebookPlacement.UNSUPPORTED) {
+                    unsupported++;
+                }
+            }
+        }
+        return rejectedEntryCount + unsupported;
+    }
 }

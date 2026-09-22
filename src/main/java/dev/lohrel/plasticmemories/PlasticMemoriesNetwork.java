@@ -1,10 +1,24 @@
-package dev.lohrel.plasticmemories.network;
+package dev.lohrel.plasticmemories;
 
+import dev.lohrel.plasticmemories.network.NpcCapabilityClientPayloadHandler;
+import dev.lohrel.plasticmemories.network.NpcCapabilityPayload;
+import dev.lohrel.plasticmemories.network.NpcCapabilityRequestPayload;
+import dev.lohrel.plasticmemories.network.NpcProfileClientPayloadHandler;
+import dev.lohrel.plasticmemories.network.NpcProfileRequestPayload;
+import dev.lohrel.plasticmemories.network.NpcProfileSnapshotPayload;
+import dev.lohrel.plasticmemories.network.NpcProfileUpdatePayload;
+import dev.lohrel.plasticmemories.network.SkillClientPayloadHandler;
+import dev.lohrel.plasticmemories.network.SkillRequestPayload;
+import dev.lohrel.plasticmemories.network.SkillResultPayload;
+import dev.lohrel.plasticmemories.server.NpcCapabilityServerPayloadHandler;
+import dev.lohrel.plasticmemories.server.NpcProfileServerPayloadHandler;
+import dev.lohrel.plasticmemories.server.SkillServerPayloadHandler;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
+/** Registers every packet with its handler. Lives at the root because it wires the network, client and server packages together. */
 public final class PlasticMemoriesNetwork {
     // Bump whenever a payload or enum changes. Clients and servers with different versions refuse to connect.
-    private static final String PROTOCOL_VERSION = "4";
+    private static final String PROTOCOL_VERSION = "5";
 
     private PlasticMemoriesNetwork() {
     }
