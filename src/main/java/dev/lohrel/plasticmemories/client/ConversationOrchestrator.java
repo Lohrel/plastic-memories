@@ -182,7 +182,15 @@ public final class ConversationOrchestrator {
                         TimeUnit.SECONDS);
         PacketDistributor.sendToServer(new NpcCapabilityRequestPayload(convTarget.npcId(), capabilityRequestId));
         PacketDistributor.sendToServer(new NpcProfileRequestPayload(convTarget.npcId(), profileRequestId));
-        ImportedPromptContext importedLore = loadImportedLorebookContext(memoryKey.orElseThrow(), memory, message);
+        ImportedPromptContext importedLore;
+        try {
+            importedLore = loadImportedLorebookContext(memoryKey.orElseThrow(), memory, message);
+        } catch (RuntimeException exception) {
+            // Without this, requestPending would stay true and every later message would be refused.
+            requestPending = false;
+            showLocal(Component.literal("[Plastic Memories] Could not load this NPC's card or lorebooks."));
+            return;
+        }
         capability.thenCombine(profile, ProviderContext::new)
                 .thenCompose(providerContext -> {
                     var providerRequest = promptBuilder.build(
@@ -311,8 +319,8 @@ public final class ConversationOrchestrator {
                     profileResponse.profile(),
                     profileResponse.canEdit(),
                     (screen, profile) -> updateCharacterProfile(selected.npcId(), screen, profile),
-                    currentLorebookBindingKey().map(key -> profileScreen -> minecraft.setScreen(
-                            new CardEditorScreen(profileScreen, characterCards(), key, selected.name())))));
+                    currentLorebookBindingKey().map(key -> profileScreen ->
+                            new CardEditorScreen(profileScreen, characterCards(), key, selected.name()))));
         }));
         return 1;
     }

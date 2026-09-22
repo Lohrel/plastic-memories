@@ -6,7 +6,7 @@ import dev.lohrel.plasticmemories.npc.NpcProfile;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineEditBox;
@@ -20,8 +20,10 @@ public final class NpcProfileScreen extends Screen {
     private final String npcName;
     private final boolean canEdit;
     private final BiConsumer<NpcProfileScreen, NpcProfile> saveHandler;
-    /** Opens this player's private "My card" view for the NPC; empty when there's no world to store it for. */
-    private final Optional<Consumer<NpcProfileScreen>> openMyCard;
+    /** Builds this player's private "My card" view for the NPC; empty when there's no world to store it for. */
+    private final Optional<Function<NpcProfileScreen, Screen>> myCardFactory;
+    // Built once and reused, so unsaved typing in My card survives switching views, as it does here.
+    private Screen myCardScreen;
     private String description;
     private String personality;
     private String appearance;
@@ -37,13 +39,13 @@ public final class NpcProfileScreen extends Screen {
             NpcProfile profile,
             boolean canEdit,
             BiConsumer<NpcProfileScreen, NpcProfile> saveHandler,
-            Optional<Consumer<NpcProfileScreen>> openMyCard) {
+            Optional<Function<NpcProfileScreen, Screen>> myCardFactory) {
         super(Component.literal("Character Profile: " + npcName));
         this.parent = parent;
         this.npcName = npcName;
         this.canEdit = canEdit;
         this.saveHandler = saveHandler;
-        this.openMyCard = openMyCard;
+        this.myCardFactory = myCardFactory;
         description = profile.description();
         personality = profile.personality();
         appearance = profile.appearance();
@@ -57,7 +59,7 @@ public final class NpcProfileScreen extends Screen {
     protected void init() {
         List<Button> toggle = viewToggle(width, true, this::openMyCard);
         toggle.forEach(this::addRenderableWidget);
-        toggle.get(1).active = openMyCard.isPresent();
+        toggle.get(1).active = myCardFactory.isPresent();
         int margin = 20;
         int tabY = 38;
         int tabWidth = Math.max(60, (width - margin * 2 - 9) / 4);
@@ -97,7 +99,13 @@ public final class NpcProfileScreen extends Screen {
     private void openMyCard() {
         // Keep unsaved edits: this screen is rebuilt from its fields when the player comes back.
         storeSelectedValue();
-        openMyCard.ifPresent(open -> open.accept(this));
+        if (myCardFactory.isEmpty() || minecraft == null) {
+            return;
+        }
+        if (myCardScreen == null) {
+            myCardScreen = myCardFactory.orElseThrow().apply(this);
+        }
+        minecraft.setScreen(myCardScreen);
     }
 
     Screen parent() {

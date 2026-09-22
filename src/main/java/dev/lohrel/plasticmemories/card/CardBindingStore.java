@@ -3,6 +3,7 @@ package dev.lohrel.plasticmemories.card;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import dev.lohrel.plasticmemories.lorebook.ImportedCharacterCard;
 import dev.lohrel.plasticmemories.lorebook.LocalLorebookBindingKey;
 import dev.lohrel.plasticmemories.storage.PrivateJsonFile;
 import java.io.IOException;
@@ -88,8 +89,10 @@ public final class CardBindingStore {
                 JsonObject stored = binding.getAsJsonObject("edits");
                 for (String name : stored.keySet()) {
                     CardField field = CardField.fromStoredName(name);
-                    if (field != null) {
-                        edits.put(field, stored.get(name).getAsString());
+                    String text = stored.get(name).getAsString();
+                    // An over-long edit (hand-edited file, lower limit in a later build) is dropped, not fatal.
+                    if (field != null && text.length() <= ImportedCharacterCard.MAX_FIELD_LENGTH) {
+                        edits.put(field, text);
                     }
                 }
             }

@@ -68,4 +68,18 @@ final class CardBindingStoreTest {
 
         assertEquals(java.util.Map.of(CardField.SCENARIO, "A new scenario."), new CardBindingStore(file).edits(MILLER));
     }
+
+    @Test
+    void editsOverTheFieldLimitAreDroppedOnLoad() throws Exception {
+        Path file = directory.resolve("card-bindings.json");
+        String tooLong = "x".repeat(dev.lohrel.plasticmemories.lorebook.ImportedCharacterCard.MAX_FIELD_LENGTH + 1);
+        Files.writeString(file, "{\"version\":1,\"bindings\":[{\"worldIdentity\":\"singleplayer:/worlds/Test\","
+                + "\"playerId\":\"00000000-0000-0000-0000-00000000000a\",\"npcId\":\"00000000-0000-0000-0000-000000000001\","
+                + "\"file\":\"seraphina.png\",\"edits\":{\"description\":\"" + tooLong + "\",\"scenario\":\"Fine.\"}}]}");
+
+        CardBindingStore store = new CardBindingStore(file);
+
+        assertEquals(Optional.of("seraphina.png"), store.boundFile(MILLER));
+        assertEquals(java.util.Map.of(CardField.SCENARIO, "Fine."), store.edits(MILLER));
+    }
 }

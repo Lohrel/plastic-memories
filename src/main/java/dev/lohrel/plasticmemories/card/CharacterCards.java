@@ -40,9 +40,17 @@ public final class CharacterCards {
             return Optional.empty();
         }
         Map<CardField, String> edits = bindings.edits(key);
+        ImportedCharacterCard edited;
+        try {
+            edited = CardField.apply(file.orElseThrow().card(), edits);
+        } catch (IllegalArgumentException exception) {
+            // Edits that no longer fit the card's limits: show and use the file's text instead of failing.
+            edited = file.orElseThrow().card();
+            edits = Map.of();
+        }
         return Optional.of(new EditableCard(
                 file.orElseThrow().fileName(),
-                CardField.apply(file.orElseThrow().card(), edits),
+                edited,
                 file.orElseThrow().card(),
                 edits.keySet().isEmpty() ? Set.of() : EnumSet.copyOf(edits.keySet())));
     }
