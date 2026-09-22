@@ -1,0 +1,46 @@
+{
+  "type": "marinara_lorebook",
+  "version": 1,
+  "exportedAt": "2026-09-20T00:00:00.000Z",
+  "data": {
+    "lorebook": {
+      "name": "Synthetic Marinara lorebook",
+      "enabled": true,
+      "scanDepth": 2,
+      "recursiveScanning": false
+    },
+    "entries": [
+      {
+        "id": "synthetic-forest",
+        "name": "Ancient forest",
+        "content": "The forest is ancient.",
+        "keys": ["forest", "woods"],
+        "secondaryKeys": ["ancient"],
+        "enabled": true,
+        "constant": false,
+        "selective": true,
+        "selectiveLogic": "and",
+        "probability": null,
+        "scanDepth": null,
+        "matchWholeWords": true,
+        "caseSensitive": false,
+        "useRegex": false,
+        "position": 0,
+        "role": "system",
+        "sticky": null,
+        "cooldown": null,
+        "delay": null,
+        "ephemeral": null,
+        "group": "",
+        "groupWeight": null,
+        "preventRecursion": true,
+        "excludeRecursion": false,
+        "delayUntilRecursion": false,
+        "activationConditions": [],
+        "schedule": null,
+        "embedding": null
+      }
+    ],
+    "folders": []
+  }
+}

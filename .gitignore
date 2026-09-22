@@ -42,4 +42,9 @@ repo/
 ### Local secrets and dependencies ###
 .env
 *.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
 libs/*.jar

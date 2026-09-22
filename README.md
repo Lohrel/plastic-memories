@@ -10,6 +10,17 @@ A Minecraft NPC interaction mod focused on private client-side AI conversations 
 - MCA Reborn 7.7.36-beta.3 as the first NPC implementation
 - One JAR containing client, shared, and server code
 
+## Build and test
+
+The repository targets Java 21. The first Gradle build downloads the pinned MCA Reborn NeoForge dependency into the ignored `build/dependencies/` directory and verifies its SHA-256 checksum; the local Minecraft `run/` directory is not a build prerequisite.
+
+```bash
+./gradlew test
+./gradlew build
+```
+
+`build/libs/plastic_memories-<version>.jar` is the distributable mod JAR. Runtime behavior still requires testing in the disposable **Plastic Memories Test** PrismLauncher instance described in [the Alpha 4 manual test](docs/ALPHA-4-MANUAL-TEST.md).
+
 ## Current build
 
 `0.1.0-alpha.4` adds the first server-authoritative gameplay skill to the private-conversation build:
@@ -26,6 +37,7 @@ A Minecraft NPC interaction mod focused on private client-side AI conversations 
 - `/plasticmemories "John"` selects one nearby MCA NPC (within 32 blocks) by exact display name.
 - Normal chat is cancelled locally while private mode is active and shown only in the local chat HUD.
 - `/plasticmemories provider` configures a generic OpenAI-compatible provider in a client-only screen.
+- `/plasticmemories lorebook` opens the client-only lorebook/card library. It scans the inbox on open and refresh, automatically imports accepted files, and leaves imported data inactive until explicitly activated or locally bound; active content reaches only the player's provider prompt.
 - `/plasticmemories character` opens the selected NPC's shared character-card profile with Description, Personality, Appearance, and Backstory tabs.
 - Character profiles are persisted in server world data, visible to nearby players, and editable only by server operators or the singleplayer/LAN host.
 - All four public profile fields are included in that NPC's private provider system prompt for every player.
@@ -34,14 +46,38 @@ A Minecraft NPC interaction mod focused on private client-side AI conversations 
 - `/plasticmemories memory status` and `/plasticmemories memory clear` inspect or clear the selected NPC's private memory.
 - `/plasticmemories status`, `/plasticmemories help`, and `/plasticmemories leave` provide conversation controls.
 
+## Lorebook and character-card imports
+
+Drop files into the client-local inbox:
+
+```text
+config/plastic_memories/lorebook-inbox/
+```
+
+The library scans this directory when opened or refreshed. Accepted files are imported into client-local storage without a network upload and remain inactive until the player activates or binds them.
+
+Supported source shapes include:
+
+- SillyTavern-compatible World Info and embedded character books;
+- Character Card V1/V2/V3 JSON;
+- V2/V3 card metadata in PNG/APNG files;
+- V3 `.charx` card packages;
+- native Marinara `marinara_lorebook` and `marinara_character` envelopes.
+
+Profile selection is automatic: native Marinara envelopes use Marinara semantics, while all other supported sources use SillyTavern semantics. Chub is not a separate runtime profile; Chub-hosted card and lorebook files are handled through the supported SillyTavern-compatible shapes. Existing local libraries using the removed profile names are migrated to SillyTavern when loaded.
+
+Ordinary lorebook activation is client-global by design. Character cards are bound to the selected local world/player/NPC tuple. Imported content remains client-only and is included in private provider prompts only after activation or binding.
+
 COOK may use any supported nearby vanilla container that is unlocked, unblocked, loaded, and permitted by vanilla world interaction checks. On multiplayer servers this can include another player's unprotected chest; third-party claims/ownership integrations, recipe cooking, fuel, and modded-container support remain later milestones. Container-search result codes require multiplayer protocol v4, so every participant must use the exact same JAR.
 
 See [Alpha 4 manual test](docs/ALPHA-4-MANUAL-TEST.md).
 
 ## Canonical documents
 
+- [Changelog](CHANGELOG.md)
 - [Product](docs/PRODUCT.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Interoperability](docs/INTEROPERABILITY.md)
 - [Privacy and security](docs/PRIVACY-AND-SECURITY.md)
 - [First vertical slice](docs/MVP.md)
 - [Architecture decisions](docs/decisions/)

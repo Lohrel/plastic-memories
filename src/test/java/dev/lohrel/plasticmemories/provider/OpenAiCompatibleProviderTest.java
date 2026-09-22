@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpServer;
+import dev.lohrel.plasticmemories.lorebook.ImportedPromptContext;
 import dev.lohrel.plasticmemories.memory.ConversationMemory;
 import dev.lohrel.plasticmemories.npc.CookAvailability;
 import dev.lohrel.plasticmemories.npc.NpcProfile;
@@ -36,7 +37,7 @@ final class OpenAiCompatibleProviderTest {
 
             Exception failure = assertThrows(Exception.class, () -> provider
                     .reply(new PromptBuilder().build(settings, "John", ConversationMemory.empty(), "Hello",
-                            CookAvailability.AVAILABLE, NpcProfile.empty()))
+                            CookAvailability.AVAILABLE, NpcProfile.empty(), ImportedPromptContext.empty()))
                     .get(5, TimeUnit.SECONDS));
 
             assertEquals("Provider authentication failed.", OpenAiCompatibleProvider.safeFailureMessage(failure));
@@ -79,7 +80,8 @@ final class OpenAiCompatibleProviderTest {
                             "Village healer",
                             "Warm but blunt",
                             "Red coat",
-                            "Raised near the old mine"));
+                            "Raised near the old mine"),
+                    ImportedPromptContext.empty());
             String reply = provider.reply(request).get(5, TimeUnit.SECONDS);
 
             assertEquals("Hello, friend.", reply);

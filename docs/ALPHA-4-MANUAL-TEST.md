@@ -24,6 +24,28 @@ Enter distinctive text in Description, Personality, Appearance, and Backstory, t
 
 Have a non-operator friend select the same NPC and open `/plasticmemories character`. Expected: the same four fields are visible, but Save is disabled. Their private provider conversation should reflect the shared profile. After leaving and reopening the world, the profile must still be present.
 
+## Lorebook and card import
+
+Use a synthetic or otherwise sanitized World Info, character-card, or native Marinara fixture. Place it in the client-local inbox:
+
+```text
+config/plastic_memories/lorebook-inbox/
+```
+
+Open:
+```text
+/plasticmemories lorebook
+```
+
+Expected:
+
+- The file is imported automatically when the library opens or is refreshed; no manual per-file Import button is required.
+- Native `marinara_lorebook` and `marinara_character` files report Marinara semantics automatically. Other supported card and World Info shapes use SillyTavern semantics.
+- Imported artifacts begin inactive. A normal lorebook requires explicit Activate; a character card requires explicit Bind to the selected local NPC.
+- Reopening or refreshing the library does not create a duplicate artifact for the same inbox filename.
+- Activating a normal lorebook makes it available in this client's private prompts. This activation is intentionally client-global; character-card bindings remain NPC-specific.
+- Remove revokes the local activation or binding and deletes the local artifact.
+
 ## Container-search COOK
 
 With no edible item in the NPC inventory, run:

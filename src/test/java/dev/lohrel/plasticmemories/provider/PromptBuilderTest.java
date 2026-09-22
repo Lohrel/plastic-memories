@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.lohrel.plasticmemories.lorebook.ImportedPromptContext;
 import dev.lohrel.plasticmemories.memory.ConversationMemory;
 import dev.lohrel.plasticmemories.npc.CookAvailability;
 import dev.lohrel.plasticmemories.npc.NpcProfile;
@@ -15,6 +16,18 @@ final class PromptBuilderTest {
     private final PromptBuilder builder = new PromptBuilder();
 
     @Test
+    void exposesOnlyTheBuildPathWithExplicitImportedContext() {
+        assertThrows(NoSuchMethodException.class, () -> PromptBuilder.class.getMethod(
+                "build",
+                ProviderSettings.class,
+                String.class,
+                ConversationMemory.class,
+                String.class,
+                CookAvailability.class,
+                NpcProfile.class));
+    }
+
+    @Test
     void buildsASystemMessageWithTheCharacterProfileAndSkillRules() {
         ProviderRequest request = builder.build(
                 settings,
@@ -22,7 +35,8 @@ final class PromptBuilderTest {
                 ConversationMemory.empty(),
                 "Hello",
                 CookAvailability.AVAILABLE,
-                NpcProfile.create("Village healer", "Warm", "Red coat", "From the old mine"));
+                NpcProfile.create("Village healer", "Warm", "Red coat", "From the old mine"),
+                ImportedPromptContext.empty());
 
         String system = request.messages().get(0).content();
         assertTrue(system.startsWith("You are John."));
@@ -42,7 +56,13 @@ final class PromptBuilderTest {
                 .append("Second", "Second reply");
 
         ProviderRequest request = builder.build(
-                settings, "John", memory, "Third", CookAvailability.NO_FOOD, NpcProfile.empty());
+                settings,
+                "John",
+                memory,
+                "Third",
+                CookAvailability.NO_FOOD,
+                NpcProfile.empty(),
+                ImportedPromptContext.empty());
 
         assertEquals(6, request.messages().size());
         assertEquals("user", request.messages().get(1).role());
@@ -60,8 +80,13 @@ final class PromptBuilderTest {
     @Test
     void playerMessageRoleIsUserAndCarriesThePrivateMessage() {
         ProviderRequest request = builder.build(
-                settings, "John", ConversationMemory.empty(), "This is private",
-                CookAvailability.BUSY, NpcProfile.empty());
+                settings,
+                "John",
+                ConversationMemory.empty(),
+                "This is private",
+                CookAvailability.BUSY,
+                NpcProfile.empty(),
+                ImportedPromptContext.empty());
 
         ProviderRequest.Message last = request.messages().get(request.messages().size() - 1);
         assertEquals("user", last.role());
@@ -72,7 +97,12 @@ final class PromptBuilderTest {
     void rejectsAnOversizedPlayerMessage() {
         String huge = "x".repeat(513);
         assertThrows(IllegalArgumentException.class, () -> builder.build(
-                settings, "John", ConversationMemory.empty(), huge,
-                CookAvailability.AVAILABLE, NpcProfile.empty()));
+                settings,
+                "John",
+                ConversationMemory.empty(),
+                huge,
+                CookAvailability.AVAILABLE,
+                NpcProfile.empty(),
+                ImportedPromptContext.empty()));
     }
 }
