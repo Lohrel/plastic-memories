@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 
+/** Saves shared character profiles with the world. Always stored in the overworld so all dimensions share one copy. */
 public final class NpcProfilesSavedData extends SavedData {
     private static final int FORMAT_VERSION = 1;
     private static final String DATA_NAME = "plastic_memories_npc_profiles";
@@ -50,6 +51,7 @@ public final class NpcProfilesSavedData extends SavedData {
 
     static NpcProfilesSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
         NpcProfilesSavedData data = new NpcProfilesSavedData();
+        // Unknown format: start empty instead of guessing. Needs a migration when FORMAT_VERSION changes.
         if (tag.getInt("Version") != FORMAT_VERSION || !tag.contains("Profiles", Tag.TAG_COMPOUND)) {
             return data;
         }
@@ -64,7 +66,7 @@ public final class NpcProfilesSavedData extends SavedData {
                         savedProfile.getString("Appearance"),
                         savedProfile.getString("Backstory")));
             } catch (IllegalArgumentException ignored) {
-                // Skip malformed or out-of-bounds public profile entries.
+                // Bad UUID or a field over the length limit: drop just this entry.
             }
         }
         return data;

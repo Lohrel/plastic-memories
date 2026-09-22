@@ -14,8 +14,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.random.RandomGenerator;
 
 /**
- * Evaluates normalized imports only in client-local memory. A stateful instance
- * retains timed effects for one private conversation scope.
+ * Decides which entries go into the prompt: keyword matches, then delay/probability/cooldown,
+ * inclusion groups, and recursive scanning. One instance per conversation keeps the sticky/cooldown timers.
  */
 public final class ImportedLorebookEvaluator {
     private final RandomGenerator random;
@@ -26,22 +26,18 @@ public final class ImportedLorebookEvaluator {
         this.random = Objects.requireNonNull(random, "random");
     }
 
-    /** Evaluates a stateless first private message without bypassing delay settings. */
+    /** One-off evaluation as if this were the first message, with no timers. */
     public static List<ImportedLorebookEntry> evaluate(ImportedLorebook book, List<String> scanWindow) {
         return new ImportedLorebookEvaluator(ThreadLocalRandom.current()).evaluate(book, scanWindow, 1);
     }
 
-    /** Random injection exists solely for deterministic client-local first-message tests. */
+    /** Same, with a seeded random for tests. */
     public static List<ImportedLorebookEntry> evaluate(
             ImportedLorebook book, List<String> scanWindow, RandomGenerator random) {
         return new ImportedLorebookEvaluator(random).evaluate(book, scanWindow, 1);
     }
 
-    /**
-     * Evaluates at a monotonically increasing private-conversation message count.
-     * A reset or rewind clears volatile timed effects instead of carrying them into
-     * a different private transcript.
-     */
+    /** {@code privateMessageCount} should increase each call; if it goes backwards (memory cleared), timers reset. */
     public List<ImportedLorebookEntry> evaluate(
             ImportedLorebook book, List<String> scanWindow, int privateMessageCount) {
         Objects.requireNonNull(book, "book");

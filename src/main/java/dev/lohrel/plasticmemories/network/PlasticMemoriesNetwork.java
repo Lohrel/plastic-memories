@@ -3,6 +3,7 @@ package dev.lohrel.plasticmemories.network;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 public final class PlasticMemoriesNetwork {
+    // Bump whenever a payload or enum changes. Clients and servers with different versions refuse to connect.
     private static final String PROTOCOL_VERSION = "4";
 
     private PlasticMemoriesNetwork() {

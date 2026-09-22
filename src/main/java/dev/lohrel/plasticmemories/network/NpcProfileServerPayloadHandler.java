@@ -15,6 +15,7 @@ import net.minecraft.world.entity.Entity;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
+/** Serves and updates the shared character profile of a nearby NPC. Anyone nearby can read; only operators can write. */
 public final class NpcProfileServerPayloadHandler {
     private static final double MAXIMUM_DISTANCE_SQUARED = 32.0 * 32.0;
     private static final Map<UUID, Long> LATEST_REQUEST_IDS = new HashMap<>();
@@ -75,6 +76,7 @@ public final class NpcProfileServerPayloadHandler {
         NEXT_PACKET_TICK.clear();
     }
 
+    /** Replay and rate-limit check shared by reads and updates. */
     private static NpcProfileResultCode admit(ServerPlayer player, long requestId) {
         if (requestId <= 0) {
             return NpcProfileResultCode.INVALID_REQUEST;

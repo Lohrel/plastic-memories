@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** The only local imported content eligible for one private provider request. */
+/** The card and lorebooks that are switched on for one conversation. */
 public record ClientLorebookContext(Optional<ImportedCharacterCard> card, List<ImportedLorebook> lorebooks) {
     public ClientLorebookContext {
         card = Objects.requireNonNull(card, "card");

@@ -2,7 +2,7 @@ package dev.lohrel.plasticmemories.lorebook;
 
 import java.util.Objects;
 
-/** Timed/group activation data retained separately from keyword matching. */
+/** Sticky/cooldown/delay timing, probability and inclusion-group settings of an entry. */
 public record LorebookActivationState(
         int probabilityPercent,
         int stickyTurns,

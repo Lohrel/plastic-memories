@@ -1,6 +1,6 @@
 package dev.lohrel.plasticmemories.lorebook;
 
-/** Role requested for a lore insertion region. UNKNOWN remains inactive until explicitly supported. */
+/** Chat role an entry asks to be inserted as. UNKNOWN entries are never activated. */
 public enum LorebookPromptRole {
     SYSTEM(0),
     USER(1),

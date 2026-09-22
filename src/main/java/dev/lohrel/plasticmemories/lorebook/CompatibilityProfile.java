@@ -2,7 +2,7 @@ package dev.lohrel.plasticmemories.lorebook;
 
 import java.util.Objects;
 
-/** Runtime defaults selected automatically from an external artifact's format. */
+/** Which app's matching rules to follow: Marinara for native Marinara files, SillyTavern for everything else. */
 public enum CompatibilityProfile {
     SILLY_TAVERN(false, false),
     MARINARA(false, false);
@@ -23,7 +23,6 @@ public enum CompatibilityProfile {
         return defaultWholeWord;
     }
 
-    /** Selects the only supported external runtime profile for a detected source format. */
     public static CompatibilityProfile forFormat(LorebookSourceFormat format) {
         Objects.requireNonNull(format, "format");
         return format == LorebookSourceFormat.MARINARA_LOREBOOK
@@ -32,7 +31,7 @@ public enum CompatibilityProfile {
                 : SILLY_TAVERN;
     }
 
-    /** Reads persisted profile names, mapping removed profiles to the supported default. */
+    /** Old libraries may contain removed profile names (e.g. Chub); those load as SillyTavern. */
     public static CompatibilityProfile fromPersistedName(String name) {
         return switch (Objects.requireNonNull(name, "name")) {
             case "MARINARA" -> MARINARA;

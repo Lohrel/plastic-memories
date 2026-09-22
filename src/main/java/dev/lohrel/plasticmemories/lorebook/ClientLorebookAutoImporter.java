@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 
-/** Imports accepted inbox artifacts into client-local storage without activating them. */
+/** Imports new files from the inbox folder into the library. Imported items start switched off. */
 public final class ClientLorebookAutoImporter {
     private ClientLorebookAutoImporter() {
     }

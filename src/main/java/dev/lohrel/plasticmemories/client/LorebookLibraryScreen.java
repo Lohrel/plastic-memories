@@ -13,7 +13,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Client-only inbox and activation UI for imported cards and lorebooks. */
+/** Lists imported lorebooks and cards and lets the player turn them on, bind them to the current NPC, or delete them. */
 public final class LorebookLibraryScreen extends Screen {
     private static final int PAGE_SIZE = 4;
 

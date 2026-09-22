@@ -2,6 +2,7 @@ package dev.lohrel.plasticmemories.conversation;
 
 import java.util.List;
 
+/** Finds the one nearby NPC whose name matches (case-insensitive). Two matches is an error, not a guess. */
 public final class NpcTargetResolver {
     private NpcTargetResolver() {
     }

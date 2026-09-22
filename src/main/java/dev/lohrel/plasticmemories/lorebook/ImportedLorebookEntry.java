@@ -3,10 +3,7 @@ package dev.lohrel.plasticmemories.lorebook;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * One source entry after normalization. Aliases remain attached to this one
- * stable entry instead of being copied into multiple prompt fragments.
- */
+/** One lorebook entry. All its keys stay on this single entry, so it's inserted once no matter which key matched. */
 public record ImportedLorebookEntry(
         String id,
         int sourceOrder,

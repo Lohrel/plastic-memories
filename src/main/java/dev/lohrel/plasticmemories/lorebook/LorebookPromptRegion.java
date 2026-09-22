@@ -3,7 +3,7 @@ package dev.lohrel.plasticmemories.lorebook;
 import java.util.List;
 import java.util.Objects;
 
-/** A stable grouping boundary that prevents lore insertion settings becoming one opaque text block. */
+/** A group of entries that share the same insertion settings, rendered as one block in the prompt. */
 public record LorebookPromptRegion(
         LorebookPromptRegionName name,
         LorebookPromptRole requestedRole,

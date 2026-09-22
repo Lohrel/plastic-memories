@@ -12,6 +12,7 @@ import net.neoforged.neoforge.client.event.ClientChatEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 
+/** Client entry point: registers the /plasticmemories command and redirects chat during a private conversation. */
 @Mod(value = PlasticMemories.MOD_ID, dist = Dist.CLIENT)
 @EventBusSubscriber(modid = PlasticMemories.MOD_ID, value = Dist.CLIENT)
 public final class PlasticMemoriesClient {
@@ -20,6 +21,7 @@ public final class PlasticMemoriesClient {
     public PlasticMemoriesClient() {
     }
 
+    // Registered client-side so the command (and the NPC name in it) is never sent to the server. See ADR 004.
     @SubscribeEvent
     static void registerClientCommands(RegisterClientCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("plasticmemories")
@@ -44,6 +46,7 @@ public final class PlasticMemoriesClient {
         if (ORCHESTRATOR.conversation().route(event.getOriginalMessage()) != OutgoingChatRoute.LOCAL_PRIVATE) {
             return;
         }
+        // Cancel before it's sent: the message must never reach server chat.
         event.setCanceled(true);
         ORCHESTRATOR.sendPrivateMessage(event.getOriginalMessage());
     }

@@ -3,6 +3,7 @@ package dev.lohrel.plasticmemories.memory;
 import java.util.ArrayList;
 import java.util.List;
 
+/** The recent turns with one NPC that get replayed into the prompt. Oldest turns drop off first. */
 public record ConversationMemory(List<ConversationTurn> turns) {
     public static final int MAX_TURNS = 12;
     public static final int MAX_TOTAL_CHARACTERS = 24_576;

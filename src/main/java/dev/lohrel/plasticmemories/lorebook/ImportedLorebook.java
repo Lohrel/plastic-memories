@@ -3,7 +3,7 @@ package dev.lohrel.plasticmemories.lorebook;
 import java.util.List;
 import java.util.Objects;
 
-/** Versioned normalized lorebook retained only in client-local storage. */
+/** An imported lorebook, converted to the mod's own format. */
 public record ImportedLorebook(
         LorebookSourceFormat format,
         CompatibilityProfile profile,

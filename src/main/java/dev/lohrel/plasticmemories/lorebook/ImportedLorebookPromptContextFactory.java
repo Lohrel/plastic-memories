@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** Assembles one provider-only imported context from private conversation state. */
+/** Builds the text to scan for keywords (remembered turns + new message) and runs the lorebook evaluation. */
 public final class ImportedLorebookPromptContextFactory {
     private ImportedLorebookPromptContextFactory() {
     }
@@ -20,10 +20,7 @@ public final class ImportedLorebookPromptContextFactory {
                 privateMessageCount(memory));
     }
 
-    /**
-     * Uses the caller-owned evaluator and a real private-message sequence
-     * number so timed source behavior remains confined to that local scope.
-     */
+    /** Uses the caller's evaluator so sticky/cooldown timers carry over between messages of the same conversation. */
     public static ImportedPromptContext create(
             ClientLorebookContext activeContext,
             ConversationMemory memory,

@@ -17,6 +17,10 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.Set;
 
+/**
+ * Saves each conversation's memory as a JSON file under config/. Any unreadable or oversized file
+ * loads as empty memory instead of failing the chat.
+ */
 public final class ConversationMemoryStore {
     private static final int FORMAT_VERSION = 1;
     private static final long MAX_FILE_BYTES = 262_144;
@@ -76,6 +80,7 @@ public final class ConversationMemoryStore {
         json.add("turns", turns);
 
         Path file = fileForTesting(key);
+        // Write to a temp file and move it into place so a crash can't leave a half-written file.
         Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
         Files.writeString(
                 temporary,
@@ -101,6 +106,7 @@ public final class ConversationMemoryStore {
         return directory.resolve(hashKey(key) + ".json");
     }
 
+    /** Hashed so file names don't reveal server addresses or world paths. */
     private static String hashKey(ConversationMemoryKey key) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

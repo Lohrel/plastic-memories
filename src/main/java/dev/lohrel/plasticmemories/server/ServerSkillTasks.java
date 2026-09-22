@@ -20,6 +20,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 @EventBusSubscriber(modid = PlasticMemories.MOD_ID)
+/** Holds the running skill task for each NPC (at most one) and ticks them every server tick. */
 public final class ServerSkillTasks {
     private static final Map<UUID, NpcTask> ACTIVE_TASKS = new HashMap<>();
 

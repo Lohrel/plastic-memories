@@ -14,6 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.chunk.LevelChunk;
 
+/** Finds the nearest supported containers around an NPC. Only looks at chunks that are already loaded. */
 final class NearbyContainerLocator {
     static final int HORIZONTAL_RANGE = 32;
     static final int VERTICAL_RANGE = 8;
@@ -50,6 +51,7 @@ final class NearbyContainerLocator {
                     if (!supports(state.getBlock())) {
                         continue;
                     }
+                    // Both halves of a double chest map to one position so it's only visited once.
                     BlockPos canonical = canonicalPosition(position, state);
                     if (!seen.add(canonical.asLong())) {
                         continue;

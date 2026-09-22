@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
-/** Reads explicitly active client-local imports for one private provider request. */
+/** Loads the active lore for a message and keeps one evaluator per conversation so timers persist. */
 public final class ClientLorebookRequestContextLoader {
     private static final int MAX_SCOPED_EVALUATORS = 128;
 
@@ -28,12 +28,12 @@ public final class ClientLorebookRequestContextLoader {
                 library.activeContext(key), memory, currentMessage, scoped.evaluator(), scoped.nextMessageCount());
     }
 
-    /** Drops volatile activation state when a private conversation ends. */
+    /** Resets sticky/cooldown timers for one conversation. */
     public synchronized void clear(LocalLorebookBindingKey key) {
         evaluators.remove(Objects.requireNonNull(key, "key"));
     }
 
-    /** Drops all volatile activation state, for example on client disconnect. */
+    /** Resets all timers, e.g. on disconnect. */
     public synchronized void clear() {
         evaluators.clear();
     }

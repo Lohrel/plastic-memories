@@ -13,6 +13,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Optional;
 import java.util.Set;
 
+/** Reads and writes provider.json. The file is owner-only because it holds the API key. */
 public final class ProviderSettingsStore {
     private static final int FORMAT_VERSION = 1;
     private static final long MAX_FILE_BYTES = 16_384;

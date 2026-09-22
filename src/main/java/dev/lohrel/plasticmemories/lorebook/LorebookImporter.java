@@ -15,17 +15,13 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Converts externally shaped artifacts into normalized client-local models. */
+/** Parses SillyTavern / Character Card / Marinara files into the mod's lorebook and card types. */
 public final class LorebookImporter {
 
     private LorebookImporter() {
     }
 
-    /**
-     * Reads a bounded JSON artifact, detects its shape from content, and
-     * returns a content-safe preview/report. It never places source text in a
-     * diagnostic or exception message.
-     */
+    /** Never throws for bad input; every failure becomes a rejected result with a diagnostic code. */
     public static LorebookImportResult importArtifact(Path file) {
         Objects.requireNonNull(file, "file");
         String sourceFilename = sourceFilename(file);

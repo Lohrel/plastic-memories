@@ -3,6 +3,7 @@ package dev.lohrel.plasticmemories.server;
 import java.util.Comparator;
 import java.util.List;
 
+/** Picks the N closest containers. Ties are broken by position so the order is always the same. */
 final class ContainerCandidatePlanner {
     private ContainerCandidatePlanner() {
     }

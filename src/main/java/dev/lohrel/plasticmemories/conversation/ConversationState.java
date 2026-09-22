@@ -3,6 +3,7 @@ package dev.lohrel.plasticmemories.conversation;
 import java.util.Objects;
 import java.util.Optional;
 
+/** Which NPC (if any) the player is privately talking to. While one is set, chat is kept off the server. */
 public final class ConversationState {
     private ConversationTarget target;
 

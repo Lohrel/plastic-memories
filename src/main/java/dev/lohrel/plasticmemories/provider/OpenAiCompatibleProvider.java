@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+/** Calls any OpenAI-compatible /chat/completions endpoint (OpenAI, OpenRouter, llama.cpp, LM Studio...). */
 public final class OpenAiCompatibleProvider implements AiProvider {
     private static final int MAX_RESPONSE_BYTES = 65_536;
     private static final int MAX_REPLY_LENGTH = 4_096;
@@ -23,6 +24,7 @@ public final class OpenAiCompatibleProvider implements AiProvider {
         this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
         this.client = HttpClient.newBuilder()
                 .connectTimeout(requestTimeout)
+                // A redirect could forward the API key to another host.
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
     }
@@ -33,6 +35,7 @@ public final class OpenAiCompatibleProvider implements AiProvider {
         JsonObject requestJson = new JsonObject();
         requestJson.addProperty("model", request.settings().model());
         requestJson.addProperty("max_tokens", 512);
+        // TODO: temperature 0 keeps the REPLY/SKILL format reliable but makes roleplay flat. Revisit with the skill rework.
         requestJson.addProperty("temperature", 0.0);
         var messages = new com.google.gson.JsonArray();
         for (var message : request.messages()) {
@@ -90,6 +93,7 @@ public final class OpenAiCompatibleProvider implements AiProvider {
         }
     }
 
+    /** Turns any failure into a fixed message. Never echoes the provider's error body, which may contain prompt text. */
     public static String safeFailureMessage(Throwable failure) {
         Throwable current = failure;
         while (current != null) {

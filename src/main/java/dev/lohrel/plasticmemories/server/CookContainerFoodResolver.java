@@ -4,6 +4,7 @@ import dev.lohrel.plasticmemories.npc.NpcHandle;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
+/** Answers "could COOK find food in a nearby container right now?" without moving anything. */
 public final class CookContainerFoodResolver {
     private CookContainerFoodResolver() {
     }

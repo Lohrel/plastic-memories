@@ -2,6 +2,10 @@ package dev.lohrel.plasticmemories.skill;
 
 import java.util.List;
 
+/**
+ * Parses the model's "REPLY: ..." / "SKILL: ..." answer. Anything that isn't exactly that shape
+ * still shows the text to the player, but the skill becomes NONE.
+ */
 public final class ModelReplyParser {
     public static final int MAX_DIALOGUE_LENGTH = 2_048;
     public static final int MAX_MODEL_OUTPUT_LENGTH = 4_096;

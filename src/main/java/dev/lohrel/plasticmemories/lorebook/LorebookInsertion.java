@@ -2,7 +2,7 @@ package dev.lohrel.plasticmemories.lorebook;
 
 import java.util.Objects;
 
-/** Preserved source insertion settings; runtime chooses a named safe region from them. */
+/** Where the source app wanted this entry placed in the prompt (position, depth, role, outlet). */
 public record LorebookInsertion(
         int sourcePosition,
         int depth,

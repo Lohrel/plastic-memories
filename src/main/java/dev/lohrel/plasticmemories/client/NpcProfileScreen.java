@@ -10,6 +10,7 @@ import net.minecraft.client.gui.components.MultiLineEditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+/** Tabbed view/editor for an NPC's shared profile. Read-only unless the server said this player may edit. */
 public final class NpcProfileScreen extends Screen {
     private final Screen parent;
     private final String npcName;

@@ -11,6 +11,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Builds the message list sent to the LLM: system prompt (profile, imported card and lore, response
+ * rules), then remembered turns, then the new message. The response rules go last so imported
+ * cards can't override them.
+ */
 public final class PromptBuilder {
     private static final int MAX_NPC_NAME_LENGTH = 128;
     private static final int MAX_PLAYER_MESSAGE_LENGTH = 512;
@@ -140,6 +145,7 @@ public final class PromptBuilder {
                 .append("right now and select NONE.");
     }
 
+    /** Old replies are stored as plain dialogue; re-wrap them so the model sees its own format in the history. */
     static String formatRememberedReply(String dialogue) {
         return "REPLY: " + dialogue.lines().map(String::strip).reduce((left, right) -> left + " " + right).orElse("...")
                 + "\nSKILL: NONE";

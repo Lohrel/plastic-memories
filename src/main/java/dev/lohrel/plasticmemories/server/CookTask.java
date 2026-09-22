@@ -12,8 +12,16 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.neoforged.neoforge.network.PacketDistributor;
 
+/**
+ * Server-side COOK skill: bring the requesting player some food.
+ *
+ * <p>If the NPC already carries food it walks straight to the player. Otherwise it visits nearby
+ * containers one by one (MOVING -> EXAMINING), takes food from the first one that has some
+ * (CARRYING), then walks back and hands it over. Every tick re-checks that the player, NPC and
+ * permissions are still valid, because anything can change while the task runs.
+ */
 final class CookTask implements NpcTask {
-    private static final int MAX_DURATION_TICKS = 20 * 120;
+    private static final int MAX_DURATION_TICKS = 20 * 120; // Hard 2-minute cap for the whole task.
     private static final int MAX_CONSECUTIVE_PATH_FAILURES = 5;
     private static final int TARGET_INTERACTION_TICKS = 60;
     private static final int MAX_DELIVERY_QUANTITY = 4;
@@ -26,9 +34,11 @@ final class CookTask implements NpcTask {
     private final long requestId;
     private final long deadline;
     private final List<BlockPos> containerTargets;
+    /** Null when the NPC already had food, so there is no container search. */
     private final CookContainerSearchProgress containerProgress;
     private final PathFailureTracker pathFailures = new PathFailureTracker(MAX_CONSECUTIVE_PATH_FAILURES);
     private BlockPos openedContainerPosition;
+    // These two pick the failure code when every container is used up: NO_FOOD beats NO_PATH beats NO_CONTAINER.
     private boolean reachedContainer;
     private boolean failedContainerPath;
     private boolean finished;
@@ -92,6 +102,7 @@ final class CookTask implements NpcTask {
         }
         long gameTime = originLevel.getGameTime();
         if (gameTime > deadline) {
+            // Running out of time almost always means the NPC couldn't get somewhere.
             finish(SkillResultCode.NO_PATH);
             return true;
         }
@@ -145,6 +156,7 @@ final class CookTask implements NpcTask {
         if (ContainerInteractionRange.isWithinArrivalDistance(
                 npc.entity().distanceToSqr(target.getCenter()))) {
             if (ContainerInteractionEffects.isOccupied(level, target)) {
+                // Someone else has it open; wait instead of skipping it.
                 npc.entity().getNavigation().stop();
                 return;
             }
@@ -162,6 +174,7 @@ final class CookTask implements NpcTask {
             containerProgress.arrived(gameTime);
             return;
         }
+        // Re-path every 10 ticks (0.5 s); computing a new path every tick is wasteful.
         if (gameTime % 10 == 0) {
             boolean moving = npc.entity().getNavigation().moveTo(
                     target.getX() + 0.5, target.getY(), target.getZ() + 0.5, MOVEMENT_SPEED);
@@ -189,6 +202,7 @@ final class CookTask implements NpcTask {
             return;
         }
 
+        // Look the container up again: it may have been broken, locked or emptied during the wait.
         closeContainer();
         var liveContainer = VanillaContainerAccess.resolveAccessible(originLevel, target, player);
         if (liveContainer.isEmpty()) {
@@ -211,6 +225,7 @@ final class CookTask implements NpcTask {
             finish(SkillResultCode.NPC_INVENTORY_FULL);
             return;
         }
+        // No food here, try the next container.
         containerProgress.inspected(false);
         pathFailures.recordSuccess();
         finishIfContainersExhausted();
@@ -230,6 +245,7 @@ final class CookTask implements NpcTask {
         }
     }
 
+    /** Food that doesn't fit in the player's inventory stays with the NPC rather than being dropped. */
     private void deliver() {
         npc.entity().getNavigation().stop();
         CookInventoryTransfer.Result transfer = CookInventoryTransfer.moveFood(
@@ -253,6 +269,7 @@ final class CookTask implements NpcTask {
             failedContainerPath = true;
         }
         containerProgress.pathFailed();
+        // Reset the counter so the next container gets its own full set of path attempts.
         pathFailures.recordSuccess();
         finishIfContainersExhausted();
     }

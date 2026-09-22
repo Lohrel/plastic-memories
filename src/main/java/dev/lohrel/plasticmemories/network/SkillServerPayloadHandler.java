@@ -16,6 +16,7 @@ import net.minecraft.world.entity.Entity;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
+/** Server side of a skill request: validates everything, then starts the task. */
 public final class SkillServerPayloadHandler {
     private static final SkillRequestGate REQUEST_GATE = new SkillRequestGate(40, 32.0);
     private static final Map<UUID, Long> NEXT_PACKET_TICK = new HashMap<>();
@@ -28,6 +29,7 @@ public final class SkillServerPayloadHandler {
             return;
         }
         long gameTick = player.serverLevel().getGameTime();
+        // Flood guard: at most one packet per player per tick. Extras are dropped without a reply.
         if (NEXT_PACKET_TICK.getOrDefault(player.getUUID(), 0L) > gameTick) {
             return;
         }
@@ -56,6 +58,7 @@ public final class SkillServerPayloadHandler {
             return;
         }
         SkillRequestContext requestContext = new SkillRequestContext(
+                // A missing entity is not "unsupported"; it fails the validNpc check as INVALID_NPC instead.
                 entity == null || npc.isPresent(),
                 validNpc,
                 ServerSkillTasks.isBusy(payload.npcId())

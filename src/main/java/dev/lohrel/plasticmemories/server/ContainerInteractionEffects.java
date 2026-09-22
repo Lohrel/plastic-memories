@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.ChestType;
 
+/** Plays the open/close lid animation and sounds while an NPC is searching a container. Visual only. */
 final class ContainerInteractionEffects {
     private static final int CHEST_OPEN_EVENT = 1;
 
@@ -27,6 +28,7 @@ final class ContainerInteractionEffects {
                     .filter(part -> isLoaded(level, part))
                     .anyMatch(part -> ChestBlockEntity.getOpenCount(level, part) > 0);
         }
+        // Barrels don't expose an open count, but their OPEN block state is set while a player is using one.
         return state.getBlock() == Blocks.BARREL && state.getValue(net.minecraft.world.level.block.BarrelBlock.OPEN);
     }
 
@@ -43,6 +45,7 @@ final class ContainerInteractionEffects {
         }
     }
 
+    /** Re-sent every tick: if a real player opens or closes the chest meanwhile, vanilla resets the lid. */
     static void maintain(ServerLevel level, BlockPos position) {
         if (!isLoaded(level, position)) {
             return;
@@ -73,6 +76,7 @@ final class ContainerInteractionEffects {
             }
             BlockState partState = level.getBlockState(part);
             Block block = partState.getBlock();
+            // Add the NPC on top of the players who really have it open, so we never close it on them.
             int realOpeners = ChestBlockEntity.getOpenCount(level, part);
             level.blockEvent(part, block, CHEST_OPEN_EVENT, opening ? realOpeners + 1 : realOpeners);
         }

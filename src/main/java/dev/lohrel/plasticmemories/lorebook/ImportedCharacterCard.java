@@ -5,8 +5,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Client-local character-card content. It is never a server NPC profile and
- * copying public fields to shared state requires a separate authorized action.
+ * An imported character card. Stays on this client; it is separate from the NPC's shared
+ * server profile ({@link dev.lohrel.plasticmemories.npc.NpcProfile}).
  */
 public record ImportedCharacterCard(
         String name,
@@ -57,7 +57,7 @@ public record ImportedCharacterCard(
         }
     }
 
-    /** Compatibility constructor for cards with no V3-only retained metadata. */
+    /** For V1/V2 cards, which have no V3 extras. */
     public ImportedCharacterCard(
             String name,
             String description,

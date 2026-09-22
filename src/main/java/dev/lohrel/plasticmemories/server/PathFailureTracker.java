@@ -1,5 +1,6 @@
 package dev.lohrel.plasticmemories.server;
 
+/** Counts consecutive pathfinding failures; the task gives up on a target once the limit is hit. */
 final class PathFailureTracker {
     private final int failureLimit;
     private int consecutiveFailures;
@@ -11,6 +12,7 @@ final class PathFailureTracker {
         this.failureLimit = failureLimit;
     }
 
+    /** Returns true once the limit is reached. */
     boolean recordFailure() {
         consecutiveFailures++;
         return consecutiveFailures >= failureLimit;

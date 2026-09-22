@@ -23,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
+/** Answers the client's "can this NPC COOK right now?" question before each chat message. */
 public final class NpcCapabilityServerPayloadHandler {
     private static final double MAXIMUM_DISTANCE_SQUARED = 32.0 * 32.0;
     private static final int REQUEST_COOLDOWN_TICKS = 20;
@@ -39,6 +40,7 @@ public final class NpcCapabilityServerPayloadHandler {
         long gameTick = player.serverLevel().getGameTime();
         UUID playerId = player.getUUID();
         long latestRequestId = LATEST_REQUEST_IDS.getOrDefault(playerId, 0L);
+        // Replayed or too frequent: answer BUSY rather than an error, the prompt only needs a hint.
         if (payload.requestId() <= latestRequestId
                 || NEXT_PACKET_TICK.getOrDefault(playerId, 0L) > gameTick) {
             respond(player, payload, CookAvailability.BUSY);
@@ -62,6 +64,7 @@ public final class NpcCapabilityServerPayloadHandler {
         List<CookFoodCandidate> candidates = validNpc
                 ? inventoryCandidates(npc.orElseThrow().inventory())
                 : List.of();
+        // Scanning containers is the expensive part, so only do it when the NPC carries no food.
         boolean nearbyContainerHasFood = eligible
                 && !busy
                 && CookFoodPlanner.selectSlot(candidates).isEmpty()

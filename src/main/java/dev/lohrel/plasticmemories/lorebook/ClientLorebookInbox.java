@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/** Bounded client-local inbox; imported artifacts are detected by content, never filename. */
+/** The inbox folder players drop files into. File type is detected from content, not the extension. */
 public final class ClientLorebookInbox {
     private static final int MAX_FILES = 256;
     private static final Set<PosixFilePermission> OWNER_DIRECTORY = Set.of(

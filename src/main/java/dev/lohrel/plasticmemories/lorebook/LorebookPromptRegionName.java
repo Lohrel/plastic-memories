@@ -1,6 +1,6 @@
 package dev.lohrel.plasticmemories.lorebook;
 
-/** Application-owned named prompt regions derived from source insertion options. */
+/** Where in the prompt a group of entries goes. */
 public enum LorebookPromptRegionName {
     BEFORE_CHARACTER,
     AFTER_CHARACTER,

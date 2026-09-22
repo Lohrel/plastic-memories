@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Matched imported data for a single private prompt; it has no server or transport types. */
+/** The card and lore entries selected for one prompt. */
 public record ImportedPromptContext(
         Optional<ImportedCharacterCard> card,
         List<ImportedLorebookEntry> loreEntries) {

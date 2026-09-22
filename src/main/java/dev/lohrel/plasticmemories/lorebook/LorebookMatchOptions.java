@@ -1,6 +1,6 @@
 package dev.lohrel.plasticmemories.lorebook;
 
-/** Per-entry matching controls after profile defaults have been applied. */
+/** How an entry's keys are matched (case, whole words, regex...), with profile defaults already applied. */
 public record LorebookMatchOptions(boolean caseSensitive, boolean wholeWord, boolean regex, int scanDepth) {
     public static final int DEFAULT_SCAN_DEPTH = 3;
     public static final int MAX_SCAN_DEPTH = 128;

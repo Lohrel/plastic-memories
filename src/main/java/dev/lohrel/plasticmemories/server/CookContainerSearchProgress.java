@@ -2,6 +2,7 @@ package dev.lohrel.plasticmemories.server;
 
 import java.util.OptionalInt;
 
+/** Tracks which container COOK is on and what it is doing with it. Pure state, no world access. */
 final class CookContainerSearchProgress {
     private final int candidateCount;
     private final int interactionTicks;
@@ -52,6 +53,7 @@ final class CookContainerSearchProgress {
         advance();
     }
 
+    /** The NPC was pushed out of reach mid-search; walk back to the same container and start over. */
     void interactionInterrupted() {
         requirePhase(Phase.EXAMINING);
         phase = Phase.MOVING;

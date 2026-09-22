@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** Builds provider-only imported context from explicitly active client-local lorebooks. */
+/** Runs the evaluator over every active lorebook and collects the card plus selected entries. */
 public final class ImportedPromptContextResolver {
     private ImportedPromptContextResolver() {
     }
@@ -17,11 +17,7 @@ public final class ImportedPromptContextResolver {
                 1);
     }
 
-    /**
-     * Resolves one request with an evaluator owned by the caller's private
-     * conversation scope. The evaluator carries only volatile client-local
-     * activation state; it is never persisted or sent over the network.
-     */
+    /** The evaluator holds this conversation's sticky/cooldown timers; they live in memory only. */
     public static ImportedPromptContext resolve(
             ClientLorebookContext activeContext,
             List<String> scanWindow,

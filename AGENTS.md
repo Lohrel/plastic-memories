@@ -25,6 +25,21 @@ Before changing code, read `README.md`, `docs/PRODUCT.md`, `docs/ARCHITECTURE.md
 - Fail closed: malformed model output becomes `NONE`; invalid packets make no world change.
 - Never weaken privacy or server validation to simplify a test.
 
+## Comments
+
+Write comments for a human maintainer reading the code for the first time.
+
+- Give every non-trivial class a one-line Javadoc saying what it is for. Skip it for self-explanatory records and enums.
+- Add inline comments only where the reason is not obvious from the code: magic numbers, fallbacks, ordering requirements, game-engine quirks, deliberate asymmetries.
+- Explain *why*, not *what*. Do not narrate the next line.
+- Use plain words. Avoid stacked jargon such as "content-safe", "provider-visible", "client-local" in every sentence.
+- Do not restate the boundaries in this file inside code comments. They apply everywhere; mention one in a comment only where the code would look wrong or pointless without it.
+- Keep comments to one or two lines. If a method needs a paragraph, it probably needs to be split or renamed.
+- Update or delete a comment when the code it describes changes.
+
+Good: `// Re-path every 10 ticks (0.5 s); computing a new path every tick is wasteful.`
+Bad: `/** Stores an inactive import report. Storing does not make content provider-visible. */`
+
 ## Verification before completion
 
 - Run the repository check command.

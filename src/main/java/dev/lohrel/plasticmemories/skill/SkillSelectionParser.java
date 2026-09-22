@@ -1,5 +1,6 @@
 package dev.lohrel.plasticmemories.skill;
 
+// TODO: unused outside its own test; ModelReplyParser does this job now. Remove with the skill rework.
 public final class SkillSelectionParser {
     private SkillSelectionParser() {
     }

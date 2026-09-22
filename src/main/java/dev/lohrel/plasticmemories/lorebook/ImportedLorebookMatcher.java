@@ -7,10 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-/**
- * Pure client-local evaluator for normalized imported entries. Import activation
- * must be approved before this is used for provider context.
- */
+/** Keyword matching only: which entries' keys appear in the text. Timing and groups are handled by the evaluator. */
 public final class ImportedLorebookMatcher {
     private ImportedLorebookMatcher() {
     }

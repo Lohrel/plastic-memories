@@ -2,6 +2,7 @@ package dev.lohrel.plasticmemories.npc;
 
 import java.util.Objects;
 
+/** The shared character profile of an NPC, stored on the server and shown to every player. */
 public record NpcProfile(String description, String personality, String appearance, String backstory) {
     public static final int MAX_DESCRIPTION_LENGTH = 1_024;
     public static final int MAX_PERSONALITY_LENGTH = 2_048;

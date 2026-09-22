@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/** In-memory map of NPC id to shared character profile. Missing NPCs get an empty profile. */
 final class NpcProfileRegistry {
     private final Map<UUID, NpcProfile> profiles = new HashMap<>();
 

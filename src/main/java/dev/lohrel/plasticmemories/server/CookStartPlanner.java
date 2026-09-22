@@ -1,5 +1,6 @@
 package dev.lohrel.plasticmemories.server;
 
+/** Decides how a COOK task begins: deliver carried food, search containers, or fail. */
 final class CookStartPlanner {
     private CookStartPlanner() {
     }

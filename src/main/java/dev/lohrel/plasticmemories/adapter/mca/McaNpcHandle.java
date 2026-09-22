@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Mob;
 
+/** {@link NpcHandle} backed by an MCA Reborn villager. */
 public final class McaNpcHandle implements NpcHandle {
     private final VillagerEntityMCA villager;
 
@@ -31,6 +32,7 @@ public final class McaNpcHandle implements NpcHandle {
 
     @Override
     public boolean canAssignSkill(ServerPlayer player) {
+        // Any non-negative MCA relationship is enough; only villagers that dislike the player refuse.
         return villager.getVillagerBrain().getMemoriesForPlayer(player).getHearts() >= 0;
     }
 

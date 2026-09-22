@@ -3,7 +3,7 @@ package dev.lohrel.plasticmemories.lorebook;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Client-private owner scope for a card binding; it is never serialized to Minecraft. */
+/** Identifies one conversation (world + player + NPC) that a card can be bound to. */
 public record LocalLorebookBindingKey(String worldIdentity, UUID playerId, UUID npcId) {
     public LocalLorebookBindingKey {
         worldIdentity = Objects.requireNonNull(worldIdentity, "worldIdentity");

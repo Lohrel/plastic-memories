@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Converts preserved source insertion data into deterministic application-owned prompt regions. */
+/** Groups selected entries by insertion settings and orders the groups for the prompt. */
 public final class LorebookPromptRegionPlanner {
     private LorebookPromptRegionPlanner() {
     }
@@ -41,9 +41,8 @@ public final class LorebookPromptRegionPlanner {
     }
 
     /**
-     * The current provider adapter has one safe, faithful insertion target.
-     * Other source modes remain preserved by imports but are rejected before a
-     * prompt can silently reinterpret them.
+     * Only "before character, system role, depth 0" is implemented. Other placements are kept in the
+     * import but block activation, rather than being inserted somewhere the author didn't intend.
      */
     public static boolean supports(LorebookInsertion insertion) {
         return insertion != null

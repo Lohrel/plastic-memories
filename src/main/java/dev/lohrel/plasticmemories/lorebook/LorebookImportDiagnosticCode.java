@@ -1,6 +1,6 @@
 package dev.lohrel.plasticmemories.lorebook;
 
-/** Stable, content-safe codes exposed by an import preview or report. */
+/** Why an import or entry was rejected or flagged. */
 public enum LorebookImportDiagnosticCode {
     INPUT_READ_FAILED,
     INPUT_TOO_LARGE,

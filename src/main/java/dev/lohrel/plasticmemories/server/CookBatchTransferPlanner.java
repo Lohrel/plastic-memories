@@ -3,6 +3,7 @@ package dev.lohrel.plasticmemories.server;
 import java.util.List;
 import java.util.function.IntUnaryOperator;
 
+/** Chooses which food slot to take from and how many items, given how much room the destination has. */
 public final class CookBatchTransferPlanner {
     private CookBatchTransferPlanner() {
     }

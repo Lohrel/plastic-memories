@@ -15,10 +15,7 @@ import java.util.zip.InflaterInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-/**
- * Bounded container decoder. It only returns JSON text; semantic format
- * detection remains in LorebookImporter.
- */
+/** Extracts the JSON from a file: plain JSON, PNG/APNG metadata, or a .charx zip. Doesn't interpret it. */
 public final class LorebookArtifactDecoder {
     private static final byte[] PNG_SIGNATURE = new byte[] {(byte) 137, 80, 78, 71, 13, 10, 26, 10};
 

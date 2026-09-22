@@ -6,6 +6,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+/** Matches incoming capability replies to the futures the client is waiting on, by request id. */
 public final class NpcCapabilityClientInbox {
     private static final NpcCapabilityClientInbox SHARED = new NpcCapabilityClientInbox();
 

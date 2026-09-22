@@ -14,6 +14,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.ChestType;
 
+/**
+ * Returns a container's inventory only if the requesting player could open it themselves:
+ * chunk loaded, world permission (spawn protection etc.), not locked, and not blocked.
+ */
 final class VanillaContainerAccess {
     private VanillaContainerAccess() {
     }
@@ -40,6 +44,7 @@ final class VanillaContainerAccess {
         if (!(block instanceof ChestBlock chestBlock) || ChestBlock.isChestBlockedAt(level, position)) {
             return Optional.empty();
         }
+        // A double chest is only usable if the other half passes the same checks.
         if (state.getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
             BlockPos partner = position.relative(ChestBlock.getConnectedDirection(state));
             boolean partnerChunkLoaded = level.getChunkSource().getChunkNow(

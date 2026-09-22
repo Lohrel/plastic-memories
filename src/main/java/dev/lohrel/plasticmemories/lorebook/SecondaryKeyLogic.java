@@ -1,9 +1,6 @@
 package dev.lohrel.plasticmemories.lorebook;
 
-/**
- * SillyTavern selective-key logic values. Primary key matching is always
- * required for non-constant entries; this rule applies only to secondary keys.
- */
+/** SillyTavern's rule for secondary keys (AND ANY, NOT ALL...). A primary key must always match first. */
 public enum SecondaryKeyLogic {
     AND_ANY(0),
     NOT_ALL(1),

@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.Objects;
 
+/** Endpoint, model and API key the player configured. */
 public record ProviderSettings(URI endpoint, String model, String apiKey) {
     public static final int MAX_ENDPOINT_LENGTH = 2048;
     public static final int MAX_MODEL_LENGTH = 128;
@@ -44,6 +45,7 @@ public record ProviderSettings(URI endpoint, String model, String apiKey) {
         if (host == null || endpoint.getUserInfo() != null || endpoint.getFragment() != null) {
             throw new IllegalArgumentException("Endpoint must be an absolute URL without credentials or a fragment.");
         }
+        // Plain HTTP would send the API key unencrypted; allow it only for local servers like Ollama.
         if (!"https".equals(scheme) && !("http".equals(scheme) && isLoopbackHost(host))) {
             throw new IllegalArgumentException("Remote endpoints must use HTTPS; HTTP is allowed only for loopback hosts.");
         }
@@ -51,6 +53,7 @@ public record ProviderSettings(URI endpoint, String model, String apiKey) {
         return new ProviderSettings(endpoint, model, apiKey);
     }
 
+    /** Accepts either a base URL (".../v1") or the full ".../chat/completions" URL. */
     public URI chatCompletionsEndpoint() {
         String value = endpoint.toString();
         int queryIndex = value.indexOf('?');

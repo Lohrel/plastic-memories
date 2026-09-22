@@ -43,6 +43,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.neoforge.network.PacketDistributor;
 
+/**
+ * Client-side hub: runs every /plasticmemories command and the full private-message flow
+ * (ask server for context -> build prompt -> call provider -> show reply -> save memory -> maybe request a skill).
+ */
 public final class ConversationOrchestrator {
     static final double TARGET_RANGE = 32.0;
 
@@ -161,6 +165,8 @@ public final class ConversationOrchestrator {
         var memory = store.load(memoryKey.orElseThrow());
         requestPending = true;
         showLocal(Component.literal("[Plastic Memories] " + convTarget.name() + " is thinking..."));
+        // Ask the server for COOK availability and the shared profile in parallel. If the server is slow,
+        // continue after 3 s with safe defaults (BUSY, empty profile) instead of blocking the chat.
         long capabilityRequestId = nextRequestId.getAndIncrement();
         long profileRequestId = nextRequestId.getAndIncrement();
         var capability = capabilityInbox.expect(convTarget.npcId(), capabilityRequestId)
@@ -187,8 +193,10 @@ public final class ConversationOrchestrator {
                             importedLore);
                     return provider.reply(providerRequest);
                 })
+                // Back to the main thread: chat, memory and packets must not be touched from the HTTP thread.
                 .whenComplete((reply, error) -> Minecraft.getInstance().execute(() -> {
                     requestPending = false;
+                    // The player may have left or switched NPC while waiting. Still save the memory, but stay quiet.
                     boolean targetStillActive = conversation.target()
                             .map(active -> active.npcId().equals(convTarget.npcId()))
                             .orElse(false);
@@ -429,6 +437,10 @@ public final class ConversationOrchestrator {
                 conversation.target().orElseThrow().npcId()));
     }
 
+    /**
+     * Key that separates memories per world. Multiplayer uses the address as typed, so the same server
+     * reached through a different address gets separate memories.
+     */
     static Optional<String> currentWorldIdentity(Minecraft minecraft) {
         var localServer = minecraft.getSingleplayerServer();
         if (localServer != null) {

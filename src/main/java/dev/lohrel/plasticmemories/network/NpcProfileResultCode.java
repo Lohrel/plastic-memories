@@ -1,5 +1,6 @@
 package dev.lohrel.plasticmemories.network;
 
+/** Sent over the network by ordinal: only append new values, never reorder or remove. */
 public enum NpcProfileResultCode {
     SUCCESS,
     INVALID_REQUEST,

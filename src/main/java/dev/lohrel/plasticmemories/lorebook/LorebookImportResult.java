@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Content-safe outcome returned for every import preview or activation attempt. */
+/** Outcome of importing one file: the parsed content (if accepted) plus diagnostics. */
 public record LorebookImportResult(
         LorebookSourceFormat format,
         CompatibilityProfile profile,

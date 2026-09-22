@@ -7,6 +7,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
+/** Client -> server: "make this NPC do this skill". Deliberately carries no chat text. */
 public record SkillRequestPayload(UUID npcId, long requestId, String skillId) implements CustomPacketPayload {
     public static final Type<SkillRequestPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(PlasticMemories.MOD_ID, "skill_request"));

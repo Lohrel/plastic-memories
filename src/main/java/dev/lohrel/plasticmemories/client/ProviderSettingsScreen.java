@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
 
+/** Form for the provider endpoint, model and API key. */
 public final class ProviderSettingsScreen extends Screen {
     private final Screen parent;
     private final ProviderSettingsStore store;
@@ -73,8 +74,7 @@ public final class ProviderSettingsScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // Avoid the in-world blur pass here. It distorted the HUD on some renderers
-        // and could also soften text drawn by this screen.
+        // Skip the background blur: it distorted the HUD and blurred this screen's text on some renderers.
         graphics.fill(0, 0, width, height, 0xF0181818);
         super.render(graphics, mouseX, mouseY, partialTick);
 

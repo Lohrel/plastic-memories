@@ -1,6 +1,6 @@
 package dev.lohrel.plasticmemories.lorebook;
 
-/** Shared resource limits for untrusted client-local artifacts. */
+/** Size limits for imported files, so a huge or malicious file can't exhaust memory. */
 public final class LorebookLimits {
     public static final long MAX_RAW_INPUT_BYTES = 10_485_760L;
     public static final long MAX_DECOMPRESSED_INPUT_BYTES = 10_485_760L;

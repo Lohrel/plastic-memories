@@ -20,11 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Versioned client-only persistence for normalized imports and local bindings.
- * Nothing in this class knows about Minecraft packets, server saves, or a
- * provider transport.
- */
+/** The local library (library.json): imported items, which ones are switched on, and which card is bound to which NPC. */
 public final class ClientLorebookLibraryStore {
     private static final int FORMAT_VERSION = 1;
     private static final String STATE_FILE = "library.json";
@@ -42,7 +38,7 @@ public final class ClientLorebookLibraryStore {
         this.directory = Objects.requireNonNull(directory, "directory");
     }
 
-    /** Stores an inactive import report. Storing does not make content provider-visible. */
+    /** Adds an import to the library, switched off. */
     public synchronized UUID store(LorebookImportResult result) throws IOException {
         Objects.requireNonNull(result, "result");
         if (result.characterCard().isEmpty() && result.lorebook().isEmpty()) {
@@ -59,7 +55,7 @@ public final class ClientLorebookLibraryStore {
         return id;
     }
 
-    /** Stores an accepted import unless this inbox source filename is already present. */
+    /** Like {@link #store}, but skips files whose name is already in the library. */
     public synchronized Optional<UUID> storeIfAbsent(LorebookImportResult result) throws IOException {
         Objects.requireNonNull(result, "result");
         if (result.characterCard().isEmpty() && result.lorebook().isEmpty()) {
@@ -80,7 +76,7 @@ public final class ClientLorebookLibraryStore {
         return Optional.of(id);
     }
 
-    /** Lists local artifact status without exposing imported card or lore text. */
+    /** Names and status only, for the library screen. */
     public synchronized List<ArtifactSummary> listArtifacts() {
         LibraryState state = loadState();
         ArrayList<ArtifactSummary> summaries = new ArrayList<>();
@@ -101,7 +97,7 @@ public final class ClientLorebookLibraryStore {
         return List.copyOf(summaries);
     }
 
-    /** Removes one local artifact and revokes every global activation or card binding that references it. */
+    /** Deletes an item and anything that referenced it (activation, card bindings). */
     public synchronized boolean remove(UUID id) throws IOException {
         Objects.requireNonNull(id, "id");
         LibraryState state = loadState();
@@ -129,7 +125,7 @@ public final class ClientLorebookLibraryStore {
         return true;
     }
 
-    /** Explicitly permits a non-card import to participate in all local private conversations. */
+    /** Switches a lorebook on for every conversation. Cards must be bound instead. */
     public synchronized void activateGlobal(UUID id) throws IOException {
         LibraryState state = loadState();
         StoredArtifact artifact = state.find(id).orElseThrow(() -> new IllegalArgumentException("Unknown imported artifact."));
@@ -148,7 +144,7 @@ public final class ClientLorebookLibraryStore {
         saveState(new LibraryState(state.artifacts(), active, state.bindings()));
     }
 
-    /** Explicitly binds an activatable imported card to one client-local world/player/NPC tuple. */
+    /** Binds this card to one NPC (in one world, for this player), replacing any card bound there before. */
     public synchronized void bindCard(LocalLorebookBindingKey key, UUID id) throws IOException {
         Objects.requireNonNull(key, "key");
         LibraryState state = loadState();
@@ -178,7 +174,7 @@ public final class ClientLorebookLibraryStore {
         saveState(new LibraryState(state.artifacts(), state.globalActive(), bindings));
     }
 
-    /** Returns only explicitly activated local data; card lore precedes ordinary global imports. */
+    /** What's switched on for this conversation. The bound card's own lorebook comes before global ones. */
     public synchronized ClientLorebookContext activeContext(LocalLorebookBindingKey key) {
         Objects.requireNonNull(key, "key");
         LibraryState state = loadState();

@@ -3,6 +3,7 @@ package dev.lohrel.plasticmemories.server;
 import java.util.List;
 import java.util.OptionalInt;
 
+/** Picks the first inventory slot that holds food. */
 public final class CookFoodPlanner {
     private CookFoodPlanner() {
     }

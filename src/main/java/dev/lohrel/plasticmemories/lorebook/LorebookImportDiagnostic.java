@@ -2,7 +2,7 @@ package dev.lohrel.plasticmemories.lorebook;
 
 import java.util.Objects;
 
-/** Deliberately contains no imported text or parser exception details. */
+/** A code plus severity. Holds no file content, so it's safe to show or log. */
 public record LorebookImportDiagnostic(
         LorebookImportDiagnosticCode code,
         LorebookImportDiagnosticSeverity severity) {

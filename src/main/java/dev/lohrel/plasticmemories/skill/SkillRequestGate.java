@@ -4,6 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Decides whether a skill request may start. Checks run in a fixed order so the most useful
+ * reason wins. Pure logic; the caller gathers the facts into a {@link SkillRequestContext}.
+ */
 public final class SkillRequestGate {
     private final long cooldownTicks;
     private final double maximumDistanceSquared;
@@ -61,6 +65,7 @@ public final class SkillRequestGate {
         latestRequestIds.remove(playerId);
     }
 
+    /** Request ids must strictly increase per player; anything else is a replay. */
     private boolean rememberRequest(UUID playerId, long requestId) {
         long latest = latestRequestIds.getOrDefault(playerId, 0L);
         if (requestId <= latest) {

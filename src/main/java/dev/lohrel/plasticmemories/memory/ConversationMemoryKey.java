@@ -3,6 +3,7 @@ package dev.lohrel.plasticmemories.memory;
 import java.util.Objects;
 import java.util.UUID;
 
+/** One memory per world + player + NPC. */
 public record ConversationMemoryKey(String worldIdentity, UUID playerId, UUID npcId) {
     public static final int MAX_WORLD_IDENTITY_LENGTH = 2_048;
 

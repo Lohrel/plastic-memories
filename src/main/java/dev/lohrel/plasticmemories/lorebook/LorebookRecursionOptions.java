@@ -1,6 +1,6 @@
 package dev.lohrel.plasticmemories.lorebook;
 
-/** Recursion controls are represented explicitly so unsupported variants never disappear. */
+/** Controls whether an entry can trigger, or be triggered by, other entries' content. */
 public record LorebookRecursionOptions(
         boolean recursive,
         boolean preventRecursion,

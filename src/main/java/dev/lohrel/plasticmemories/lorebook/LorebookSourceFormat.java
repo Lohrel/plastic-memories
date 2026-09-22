@@ -1,6 +1,6 @@
 package dev.lohrel.plasticmemories.lorebook;
 
-/** Content-detected artifact formats accepted by the client-local importer. */
+/** File formats the importer recognizes. */
 public enum LorebookSourceFormat {
     CLASSIC_WORLD_INFO,
     CHARACTER_CARD_V1,

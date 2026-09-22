@@ -5,6 +5,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 
+/** Moves food between two inventories (container -> NPC, NPC -> player). */
 final class CookInventoryTransfer {
     private CookInventoryTransfer() {
     }
@@ -25,6 +26,7 @@ final class CookInventoryTransfer {
                 || !source.canTakeItem(destination, sourceSlot, sourceStack)) {
             return new Result(CookBatchTransferPlan.Result.NO_FOOD, 0);
         }
+        // Insert first, then remove only what actually fit, so a failure can never delete items.
         int inserted = insert(destination, destinationSlots, sourceStack, plan.quantity());
         if (inserted <= 0) {
             return new Result(CookBatchTransferPlan.Result.INVENTORY_FULL, 0);
@@ -77,6 +79,7 @@ final class CookInventoryTransfer {
         return capacity;
     }
 
+    /** Tops up matching stacks first, then uses empty slots. Returns how many items were placed. */
     private static int insert(Container destination, int destinationSlots, ItemStack sample, int requested) {
         int remaining = requested;
         int slots = Math.min(destinationSlots, destination.getContainerSize());
