@@ -25,9 +25,11 @@ import dev.lohrel.plasticmemories.network.PendingNpcRequests;
 import dev.lohrel.plasticmemories.network.SkillRequestPayload;
 import dev.lohrel.plasticmemories.npc.CookAvailability;
 import dev.lohrel.plasticmemories.npc.NpcProfile;
+import dev.lohrel.plasticmemories.persona.PersonaStore;
 import dev.lohrel.plasticmemories.provider.AiProvider;
 import dev.lohrel.plasticmemories.provider.OpenAiCompatibleProvider;
 import dev.lohrel.plasticmemories.provider.PromptBuilder;
+import dev.lohrel.plasticmemories.provider.PromptPersona;
 import dev.lohrel.plasticmemories.provider.ProviderSettingsStore;
 import dev.lohrel.plasticmemories.skill.ModelReplyParser;
 import dev.lohrel.plasticmemories.skill.SkillId;
@@ -182,6 +184,7 @@ public final class ConversationOrchestrator {
                         TimeUnit.SECONDS);
         PacketDistributor.sendToServer(new NpcCapabilityRequestPayload(convTarget.npcId(), capabilityRequestId));
         PacketDistributor.sendToServer(new NpcProfileRequestPayload(convTarget.npcId(), profileRequestId));
+        PromptPersona persona = currentPersona();
         ImportedPromptContext importedLore;
         try {
             importedLore = loadImportedLorebookContext(memoryKey.orElseThrow(), memory, message);
@@ -202,7 +205,8 @@ public final class ConversationOrchestrator {
                             providerContext.profileResponse().result() == NpcProfileResultCode.SUCCESS
                                     ? providerContext.profileResponse().profile()
                                     : NpcProfile.empty(),
-                            importedLore);
+                            importedLore,
+                            persona);
                     return provider.reply(providerRequest);
                 })
                 // Back to the main thread: chat, memory and packets must not be touched from the HTTP thread.
@@ -261,6 +265,7 @@ public final class ConversationOrchestrator {
         showLocal(Component.literal("/plasticmemories status - show private conversation status"));
         showLocal(Component.literal("/plasticmemories memory status|clear - manage private memory"));
         showLocal(Component.literal("/plasticmemories lorebook - open the client-only lorebook library and inbox."));
+        showLocal(Component.literal("/plasticmemories persona - manage your personas; persona next - switch to the next one"));
         return 1;
     }
 
@@ -271,6 +276,7 @@ public final class ConversationOrchestrator {
                 .map(key -> memoryStore().load(key).turns().size())
                 .orElse(0);
         showLocal(Component.literal("[Plastic Memories] NPC: " + targetName
+                + " | persona: " + currentPersona().name()
                 + " | provider: " + (providerConfigured ? "configured" : "not configured")
                 + " | remembered turns: " + rememberedTurns
                 + " | request pending: " + requestPending));
@@ -361,6 +367,49 @@ public final class ConversationOrchestrator {
             showLocal(Component.literal("[Plastic Memories] Private memory could not be cleared."));
             return 0;
         }
+    }
+
+    public int openPersonas() {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.setScreen(new PersonaScreen(minecraft.screen, personaStore(), currentLorebookBindingKey(),
+                conversation.target().map(ConversationTarget::name)));
+        return 1;
+    }
+
+    public int nextPersona() {
+        try {
+            var next = personaStore().cycleActive();
+            if (next.isEmpty()) {
+                showLocal(Component.literal("[Plastic Memories] No saved personas. Create one with /plasticmemories persona."));
+                return 0;
+            }
+            String message = "[Plastic Memories] Persona: " + next.orElseThrow().name();
+            // A lock on the current NPC still wins, so say so rather than letting the switch look broken.
+            var locked = currentLorebookBindingKey().flatMap(personaStore()::lockedFor);
+            if (locked.isPresent()) {
+                message += " (" + conversation.target().map(ConversationTarget::name).orElse("this NPC")
+                        + " still sees you as " + locked.orElseThrow().name() + ")";
+            }
+            showLocal(Component.literal(message));
+            return 1;
+        } catch (IOException exception) {
+            showLocal(Component.literal("[Plastic Memories] Could not save the persona change."));
+            return 0;
+        }
+    }
+
+    /** The persona for the current NPC (its lock, else the active one), or the player's own name. */
+    private PromptPersona currentPersona() {
+        var persona = currentLorebookBindingKey().flatMap(personaStore()::personaFor).or(personaStore()::active);
+        if (persona.isPresent()) {
+            return new PromptPersona(persona.orElseThrow().name(), persona.orElseThrow().description());
+        }
+        var player = Minecraft.getInstance().player;
+        return player == null ? PromptPersona.DEFAULT : new PromptPersona(player.getName().getString(), "");
+    }
+
+    private PersonaStore personaStore() {
+        return new PersonaStore(configDirectory().resolve("personas.json"));
     }
 
     public int openLorebookLibrary() {

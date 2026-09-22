@@ -15,6 +15,8 @@ All notable changes to Plastic Memories are tracked here. Changes under `[Unrele
 - Persistence migration for libraries created with the removed legacy profile names.
 
 - Character-cards folder (`config/plastic_memories/character-cards/`) with a private portrait picker. PNG portraits and `.charx` icons are shown.
+- Personas: saved player personas (name + description) with an active one, per-NPC locks, a manager screen (`/plasticmemories persona`) and `/plasticmemories persona next`.
+- `{{user}}`/`<USER>` and `{{char}}`/`<BOT>` macros in cards, lorebooks and profiles are replaced with the persona and NPC names.
 - "My card" view on the NPC profile screen: see and edit your card's fields for that NPC without changing the file.
 - Lorebooks can be switched on for a single NPC, in addition to all NPCs.
 - At-depth lore placement, inserted into the chat history like SillyTavern and Marinara.

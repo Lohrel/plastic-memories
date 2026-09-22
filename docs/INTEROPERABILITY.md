@@ -56,6 +56,10 @@ Positions are interpreted with the numbering of the app that produced the file (
 
 `depth` and `role` only matter at depth. Character Card V2/V3 book entries store these settings under `extensions` (and `position` as `"before_char"`/`"after_char"`); the importer reads them the way SillyTavern's `convertCharacterBook` does.
 
+## Macros
+
+`{{user}}` and `<USER>` become the player's persona name (or Minecraft name), and `{{char}}` and `<BOT>` the NPC's name, case-insensitively, in the whole system prompt and in at-depth lore. Other SillyTavern macros (`{{random}}`, `{{time}}`, ...) are not implemented and are sent as written.
+
 ## Activation scope
 
 - A lorebook can be switched on for **all NPCs**, for **one NPC** (one world + player + NPC), or both. It's included once either way.

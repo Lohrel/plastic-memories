@@ -56,6 +56,16 @@ config/plastic_memories/character-cards/
 
 Open an NPC's profile (`/plasticmemories character`), switch to **My card**, and press **Card...** to pick one from a portrait grid. My card shows the card's fields (description, personality, scenario, first message, examples, system prompt, post-history) and lets you edit them for that NPC; **Reset to file** undoes your edits. Everything here is private: it's stored on your computer only, per world and NPC, and the card file itself is never changed. The folder is the collection, so editing or deleting a file there changes what the picker shows.
 
+## Personas
+
+`/plasticmemories persona` opens your saved personas: who you are to the NPCs, like SillyTavern and Marinara personas. Each has a name and a description.
+
+- **Use** makes a persona active for every NPC. `/plasticmemories persona next` switches to the next saved persona without opening the screen.
+- **Lock to NPC** makes a persona the one a specific NPC always sees, whatever is active.
+- The name replaces `{{user}}` (and `<USER>`) in cards, lorebooks and profiles; `{{char}}` (and `<BOT>`) becomes the NPC's name. With no persona, your Minecraft name is used.
+
+Personas are stored only on your computer, in `config/plastic_memories/personas.json`.
+
 ## Lorebook imports
 
 Drop lorebook files into:

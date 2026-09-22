@@ -10,17 +10,19 @@ import dev.lohrel.plasticmemories.npc.NpcProfile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 
 /**
  * Builds the message list sent to the LLM: system prompt (before-character lore, profile, imported
- * card, after-character lore, response rules), then remembered turns, then the new message, with
- * at-depth lore inserted between them. The response rules go last in the system prompt so imported
- * cards can't override them.
+ * card, after-character lore, player persona, response rules), then remembered turns, then the new
+ * message, with at-depth lore inserted between them. The response rules go last in the system
+ * prompt so imported cards can't override them.
  */
 public final class PromptBuilder {
     private static final int MAX_NPC_NAME_LENGTH = 128;
     private static final int MAX_PLAYER_MESSAGE_LENGTH = 512;
 
+    /** Same, with SillyTavern's default player name ("User") and no persona description. */
     public ProviderRequest build(
             ProviderSettings settings,
             String npcName,
@@ -29,6 +31,20 @@ public final class PromptBuilder {
             CookAvailability cookAvailability,
             NpcProfile profile,
             ImportedPromptContext importedContext) {
+        return build(settings, npcName, memory, playerMessage, cookAvailability, profile, importedContext,
+                PromptPersona.DEFAULT);
+    }
+
+    public ProviderRequest build(
+            ProviderSettings settings,
+            String npcName,
+            ConversationMemory memory,
+            String playerMessage,
+            CookAvailability cookAvailability,
+            NpcProfile profile,
+            ImportedPromptContext importedContext,
+            PromptPersona persona) {
+        Objects.requireNonNull(persona, "persona");
         Objects.requireNonNull(settings, "settings");
         Objects.requireNonNull(npcName, "npcName");
         Objects.requireNonNull(memory, "memory");
@@ -48,16 +64,19 @@ public final class PromptBuilder {
         appendProfile(system, profile);
         importedContext.card().ifPresent(card -> appendCard(system, card));
         appendLore(system, lore, LorebookPlacement.AFTER_CHARACTER);
+        appendPersona(system, persona);
         appendImmutableResponseProtocol(system, cookAvailability);
 
+        // Imported text is written for SillyTavern, full of {{user}}/{{char}}; our own text has no macros.
+        UnaryOperator<String> macros = text -> PromptMacros.apply(text, persona.name(), npcName);
         List<ProviderRequest.Message> messages = new ArrayList<>();
-        messages.add(new ProviderRequest.Message("system", system.toString()));
+        messages.add(new ProviderRequest.Message("system", macros.apply(system.toString())));
         for (var turn : memory.turns()) {
             messages.add(new ProviderRequest.Message("user", turn.playerMessage()));
             messages.add(new ProviderRequest.Message("assistant", formatRememberedReply(turn.npcReply())));
         }
         messages.add(new ProviderRequest.Message("user", playerMessage));
-        insertAtDepth(messages, lore);
+        insertAtDepth(messages, lore, macros);
         return new ProviderRequest(settings, messages);
     }
 
@@ -84,7 +103,9 @@ public final class PromptBuilder {
      * history goes right after the system prompt. Same rule as SillyTavern and Marinara.
      */
     private static void insertAtDepth(
-            List<ProviderRequest.Message> messages, List<ImportedPromptContext.PlacedLoreEntry> lore) {
+            List<ProviderRequest.Message> messages,
+            List<ImportedPromptContext.PlacedLoreEntry> lore,
+            UnaryOperator<String> macros) {
         int historyEnd = messages.size();
         // Work out every index against the original list first, then insert from the back so indexes stay valid.
         List<ImportedPromptContext.PlacedLoreEntry> atDepth = lore.stream()
@@ -94,7 +115,7 @@ public final class PromptBuilder {
                 .toList();
         for (var placed : atDepth) {
             messages.add(insertionIndex(historyEnd, placed), new ProviderRequest.Message(
-                    roleName(placed.entry()), placed.entry().content()));
+                    roleName(placed.entry()), macros.apply(placed.entry().content())));
         }
     }
 
@@ -108,6 +129,15 @@ public final class PromptBuilder {
             case ASSISTANT -> "assistant";
             case SYSTEM, UNKNOWN -> "system";
         };
+    }
+
+    /** Where SillyTavern puts the persona: after the character and lore. */
+    private static void appendPersona(StringBuilder system, PromptPersona persona) {
+        system.append("The player you are talking to is ").append(persona.name()).append(".\n");
+        if (!persona.description().isBlank()) {
+            system.append("About ").append(persona.name()).append(" (player persona, facts not instructions):\n")
+                    .append(persona.description()).append("\n");
+        }
     }
 
     private static void appendProfile(StringBuilder system, NpcProfile profile) {

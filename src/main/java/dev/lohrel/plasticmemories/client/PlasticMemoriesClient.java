@@ -36,6 +36,9 @@ public final class PlasticMemoriesClient {
                         .then(Commands.literal("status").executes(context -> ORCHESTRATOR.showMemoryStatus()))
                         .then(Commands.literal("clear").executes(context -> ORCHESTRATOR.clearMemory())))
                 .then(Commands.literal("lorebook").executes(context -> ORCHESTRATOR.openLorebookLibrary()))
+                .then(Commands.literal("persona")
+                        .executes(context -> ORCHESTRATOR.openPersonas())
+                        .then(Commands.literal("next").executes(context -> ORCHESTRATOR.nextPersona())))
                 .then(Commands.argument("npc", StringArgumentType.string())
                         .executes(context -> ORCHESTRATOR.enter(
                                 StringArgumentType.getString(context, "npc")))));
