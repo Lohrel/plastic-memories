@@ -1,22 +1,34 @@
 package dev.lohrel.plasticmemories.lorebook;
 
 import dev.lohrel.plasticmemories.memory.ConversationMemory;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 
-/** Loads the active lore for a message and keeps one evaluator per conversation so timers persist. */
+/** Loads the NPC's card and active lore for a message, and keeps one evaluator per conversation so timers persist. */
 public final class ClientLorebookRequestContextLoader {
     private static final int MAX_SCOPED_EVALUATORS = 128;
 
     private final ClientLorebookLibraryStore library;
+    private final Function<LocalLorebookBindingKey, Optional<ImportedCharacterCard>> boundCard;
     private final Map<LocalLorebookBindingKey, ScopedEvaluator> evaluators =
             new LinkedHashMap<>(MAX_SCOPED_EVALUATORS, 1.0F, true);
 
     public ClientLorebookRequestContextLoader(ClientLorebookLibraryStore library) {
+        this(library, key -> Optional.empty());
+    }
+
+    /** {@code boundCard} returns the card chosen for an NPC, from the character-cards folder. */
+    public ClientLorebookRequestContextLoader(
+            ClientLorebookLibraryStore library,
+            Function<LocalLorebookBindingKey, Optional<ImportedCharacterCard>> boundCard) {
         this.library = Objects.requireNonNull(library, "library");
+        this.boundCard = Objects.requireNonNull(boundCard, "boundCard");
     }
 
     public synchronized ImportedPromptContext load(
@@ -24,8 +36,13 @@ public final class ClientLorebookRequestContextLoader {
         Objects.requireNonNull(key, "key");
         int rememberedTurns = memory == null ? 0 : memory.turns().size();
         ScopedEvaluator scoped = evaluatorFor(key, rememberedTurns);
+        Optional<ImportedCharacterCard> card = boundCard.apply(key);
+        // The card's own book comes first, as in SillyTavern, then this NPC's and the global lorebooks.
+        ArrayList<ImportedLorebook> lorebooks = new ArrayList<>();
+        card.flatMap(ImportedCharacterCard::embeddedLorebook).ifPresent(lorebooks::add);
+        lorebooks.addAll(library.activeContext(key).lorebooks());
         return ImportedPromptContextResolver.resolve(
-                library.activeContext(key), memory, currentMessage, scoped.evaluator(), scoped.nextMessageCount());
+                new ClientLorebookContext(card, lorebooks), memory, currentMessage, scoped.evaluator(), scoped.nextMessageCount());
     }
 
     /** Resets sticky/cooldown timers for one conversation. */

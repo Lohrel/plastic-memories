@@ -3,10 +3,14 @@ package dev.lohrel.plasticmemories.client;
 import dev.lohrel.plasticmemories.network.NpcProfileResponse;
 import dev.lohrel.plasticmemories.network.NpcProfileResultCode;
 import dev.lohrel.plasticmemories.npc.NpcProfile;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineEditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -16,6 +20,8 @@ public final class NpcProfileScreen extends Screen {
     private final String npcName;
     private final boolean canEdit;
     private final BiConsumer<NpcProfileScreen, NpcProfile> saveHandler;
+    /** Opens this player's private "My card" view for the NPC; empty when there's no world to store it for. */
+    private final Optional<Consumer<NpcProfileScreen>> openMyCard;
     private String description;
     private String personality;
     private String appearance;
@@ -30,12 +36,14 @@ public final class NpcProfileScreen extends Screen {
             String npcName,
             NpcProfile profile,
             boolean canEdit,
-            BiConsumer<NpcProfileScreen, NpcProfile> saveHandler) {
+            BiConsumer<NpcProfileScreen, NpcProfile> saveHandler,
+            Optional<Consumer<NpcProfileScreen>> openMyCard) {
         super(Component.literal("Character Profile: " + npcName));
         this.parent = parent;
         this.npcName = npcName;
         this.canEdit = canEdit;
         this.saveHandler = saveHandler;
+        this.openMyCard = openMyCard;
         description = profile.description();
         personality = profile.personality();
         appearance = profile.appearance();
@@ -47,6 +55,9 @@ public final class NpcProfileScreen extends Screen {
 
     @Override
     protected void init() {
+        List<Button> toggle = viewToggle(width, true, this::openMyCard);
+        toggle.forEach(this::addRenderableWidget);
+        toggle.get(1).active = openMyCard.isPresent();
         int margin = 20;
         int tabY = 38;
         int tabWidth = Math.max(60, (width - margin * 2 - 9) / 4);
@@ -81,6 +92,34 @@ public final class NpcProfileScreen extends Screen {
                 .bounds(width / 2 + 4, buttonY, 100, 20)
                 .build());
         setInitialFocus(editor);
+    }
+
+    private void openMyCard() {
+        // Keep unsaved edits: this screen is rebuilt from its fields when the player comes back.
+        storeSelectedValue();
+        openMyCard.ifPresent(open -> open.accept(this));
+    }
+
+    Screen parent() {
+        return parent;
+    }
+
+    /**
+     * The "Shared profile | My card" switch at the top of both views. The current view's button is
+     * disabled; {@code switchView} opens the other one.
+     */
+    static List<Button> viewToggle(int width, boolean sharedSelected, Runnable switchView) {
+        Button shared = Button.builder(Component.literal("Shared profile"), button -> switchView.run())
+                .bounds(width / 2 - 102, 10, 100, 20)
+                .tooltip(Tooltip.create(Component.literal("What the server says about this NPC. Everyone sees it.")))
+                .build();
+        Button mine = Button.builder(Component.literal("My card"), button -> switchView.run())
+                .bounds(width / 2 + 2, 10, 100, 20)
+                .tooltip(Tooltip.create(Component.literal("Your private character card for this NPC. Only you see it.")))
+                .build();
+        shared.active = !sharedSelected;
+        mine.active = sharedSelected;
+        return List.of(shared, mine);
     }
 
     private void select(ProfileField field) {
@@ -145,7 +184,6 @@ public final class NpcProfileScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fill(0, 0, width, height, 0xF0181818);
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(font, title, width / 2, 14, 0xFFFFFF);
         graphics.drawString(font, Component.literal(selectedField.label + " — " + npcName), 20, 64, 0xFFFFFF, true);
         graphics.drawCenteredString(font, status, width / 2, height - 42, 0xBBBBBB);
     }

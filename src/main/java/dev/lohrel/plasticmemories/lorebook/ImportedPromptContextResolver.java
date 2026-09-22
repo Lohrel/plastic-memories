@@ -3,7 +3,7 @@ package dev.lohrel.plasticmemories.lorebook;
 import dev.lohrel.plasticmemories.memory.ConversationMemory;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,7 +64,8 @@ public final class ImportedPromptContextResolver {
         candidates.sort(Comparator.comparingInt((Candidate candidate) -> candidate.placed().entry().order()).reversed());
 
         ArrayList<ImportedPromptContext.PlacedLoreEntry> sent = new ArrayList<>();
-        Map<ImportedLorebook, List<ImportedLorebookEntry>> sentByBook = new LinkedHashMap<>();
+        // Same book objects as above; identity avoids hashing whole books again.
+        Map<ImportedLorebook, List<ImportedLorebookEntry>> sentByBook = new IdentityHashMap<>();
         int characters = 0;
         for (Candidate candidate : candidates) {
             int length = candidate.placed().entry().content().length();

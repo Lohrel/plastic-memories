@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,6 +21,10 @@ import java.util.random.RandomGenerator;
 public final class ImportedLorebookEvaluator {
     private final RandomGenerator random;
     private final Map<RuntimeEntryKey, TimedEffect> timedEffects = new HashMap<>();
+    // Books are re-read from disk for every message, so timers key on the book's content hash.
+    // Hashing a large book is slow, so it's done once per call and remembered here (cleared per call
+    // so old copies of big books aren't kept alive).
+    private final Map<ImportedLorebook, Integer> bookHashes = new IdentityHashMap<>();
     private int lastMessageCount = -1;
 
     public ImportedLorebookEvaluator(RandomGenerator random) {
@@ -55,6 +60,7 @@ public final class ImportedLorebookEvaluator {
     public List<ImportedLorebookEntry> select(
             ImportedLorebook book, List<String> scanWindow, int privateMessageCount) {
         Objects.requireNonNull(book, "book");
+        bookHashes.clear();
         int messageCount = Math.max(0, privateMessageCount);
         if (messageCount < lastMessageCount) {
             timedEffects.clear();
@@ -126,6 +132,7 @@ public final class ImportedLorebookEvaluator {
 
     /** Starts timers for entries that reached the prompt. Entries already sticky keep their current timer. */
     public void recordActivations(ImportedLorebook book, List<ImportedLorebookEntry> sent, int privateMessageCount) {
+        bookHashes.clear();
         int messageCount = Math.max(0, privateMessageCount);
         for (ImportedLorebookEntry entry : sent) {
             if (!timing(book, entry, messageCount).sticky()) {
@@ -182,7 +189,7 @@ public final class ImportedLorebookEvaluator {
     }
 
     private Timing timing(ImportedLorebook book, ImportedLorebookEntry entry, int messageCount) {
-        RuntimeEntryKey key = new RuntimeEntryKey(book, entry.id());
+        RuntimeEntryKey key = key(book, entry);
         TimedEffect effect = timedEffects.get(key);
         if (effect == null) {
             return Timing.NONE;
@@ -207,9 +214,9 @@ public final class ImportedLorebookEvaluator {
     private void recordActivation(ImportedLorebook book, ImportedLorebookEntry entry, int messageCount) {
         LorebookActivationState activation = entry.activationState();
         if (activation.stickyTurns() > 0) {
-            timedEffects.put(new RuntimeEntryKey(book, entry.id()), new TimedEffect(messageCount + activation.stickyTurns(), -1));
+            timedEffects.put(key(book, entry), new TimedEffect(messageCount + activation.stickyTurns(), -1));
         } else if (activation.cooldownTurns() > 0) {
-            timedEffects.put(new RuntimeEntryKey(book, entry.id()), new TimedEffect(-1, messageCount + activation.cooldownTurns()));
+            timedEffects.put(key(book, entry), new TimedEffect(-1, messageCount + activation.cooldownTurns()));
         }
     }
 
@@ -232,7 +239,11 @@ public final class ImportedLorebookEvaluator {
         return List.copyOf(content);
     }
 
-    private record RuntimeEntryKey(ImportedLorebook book, String entryId) {
+    private RuntimeEntryKey key(ImportedLorebook book, ImportedLorebookEntry entry) {
+        return new RuntimeEntryKey(bookHashes.computeIfAbsent(book, ImportedLorebook::hashCode), entry.id());
+    }
+
+    private record RuntimeEntryKey(int bookHash, String entryId) {
     }
 
     private record TimedEffect(int stickyUntilMessage, int cooldownUntilMessage) {

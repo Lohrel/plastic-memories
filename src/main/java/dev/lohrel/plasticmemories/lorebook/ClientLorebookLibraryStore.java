@@ -6,7 +6,6 @@ import com.google.gson.JsonObject;
 import dev.lohrel.plasticmemories.storage.PrivateJsonFile;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -16,11 +15,16 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-/** The local library (library.json): imported items, which ones are switched on, and which card is bound to which NPC. */
+/**
+ * The local lorebook library (library.json): imported lorebooks and which ones are switched on,
+ * for all NPCs or for single NPCs. Character cards are not stored here; they live in the
+ * character-cards folder (see {@link dev.lohrel.plasticmemories.card.CharacterCardFolder}).
+ */
 public final class ClientLorebookLibraryStore {
     private static final int FORMAT_VERSION = 1;
     private static final String STATE_FILE = "library.json";
-    // Fields a newer build adds are kept on save, so downgrading never strips them.
+    // Fields a newer build adds are kept on save, so downgrading never strips them. "bindings" held
+    // card bindings in early v1 files; cards moved out, so it's known (and dropped) rather than kept.
     private static final Set<String> KNOWN_TOP_LEVEL_FIELDS =
             Set.of("version", "artifacts", "globalActive", "bindings", "npcLorebooks");
 
@@ -32,13 +36,13 @@ public final class ClientLorebookLibraryStore {
 
     /** Adds an import to the library, switched off. */
     public synchronized UUID store(LorebookImportResult result) throws IOException {
-        requireContent(result);
+        requireLorebook(result);
         return add(loadState(), result);
     }
 
     /** Like {@link #store}, but skips files whose name is already in the library. */
     public synchronized Optional<UUID> storeIfAbsent(LorebookImportResult result) throws IOException {
-        requireContent(result);
+        requireLorebook(result);
         LibraryState state = loadState();
         if (state.artifacts().stream()
                 .anyMatch(artifact -> artifact.result().sourceFilename().equals(result.sourceFilename()))) {
@@ -47,10 +51,13 @@ public final class ClientLorebookLibraryStore {
         return Optional.of(add(state, result));
     }
 
-    private static void requireContent(LorebookImportResult result) {
+    private static void requireLorebook(LorebookImportResult result) {
         Objects.requireNonNull(result, "result");
-        if (result.characterCard().isEmpty() && result.lorebook().isEmpty()) {
-            throw new IllegalArgumentException("An import without normalized content cannot be stored.");
+        if (result.characterCard().isPresent()) {
+            throw new IllegalArgumentException("Character cards belong in the character-cards folder.");
+        }
+        if (result.lorebook().isEmpty()) {
+            throw new IllegalArgumentException("An import without a lorebook cannot be stored.");
         }
     }
 
@@ -61,179 +68,116 @@ public final class ClientLorebookLibraryStore {
         } while (state.find(id).isPresent());
         ArrayList<StoredArtifact> artifacts = new ArrayList<>(state.artifacts());
         artifacts.add(new StoredArtifact(id, result));
-        saveState(new LibraryState(artifacts, state.globalActive(), state.bindings(), state.npcLorebooks(), state.extras()));
+        saveState(state.withArtifacts(artifacts));
         return id;
     }
 
-    /** Names and status only, for the library screen. */
     public synchronized List<ArtifactSummary> listArtifacts() {
         return listArtifacts(Optional.empty());
     }
 
-    /** Same, plus whether each lorebook is switched on for {@code currentNpc}. */
+    /** Names and status only, for the library screen, plus whether each is switched on for {@code currentNpc}. */
     public synchronized List<ArtifactSummary> listArtifacts(Optional<LocalLorebookBindingKey> currentNpc) {
         LibraryState state = loadState();
         ArrayList<ArtifactSummary> summaries = new ArrayList<>();
         for (StoredArtifact artifact : state.artifacts()) {
             LorebookImportResult result = artifact.result();
-            boolean bound = state.bindings().stream()
-                    .anyMatch(binding -> binding.artifactId().equals(artifact.id()));
             summaries.add(new ArtifactSummary(
                     artifact.id(),
                     result.sourceFilename(),
                     result.format(),
                     result.profile(),
-                    result.characterCard().isPresent(),
                     result.activationPossible(),
                     state.globalActive().contains(artifact.id()),
-                    bound,
-                    currentNpc.map(key -> state.npcLorebooks().contains(new CardBinding(key, artifact.id())))
+                    currentNpc.map(key -> state.npcLorebooks().contains(new NpcBinding(key, artifact.id())))
                             .orElse(false),
                     result.skippedEntryCount()));
         }
         return List.copyOf(summaries);
     }
 
-    /** Deletes an item and anything that referenced it (activation, card bindings). */
+    /** Deletes a lorebook and anything that referenced it. */
     public synchronized boolean remove(UUID id) throws IOException {
         Objects.requireNonNull(id, "id");
         LibraryState state = loadState();
-        ArrayList<StoredArtifact> artifacts = new ArrayList<>();
-        boolean removed = false;
-        for (StoredArtifact artifact : state.artifacts()) {
-            if (artifact.id().equals(id)) {
-                removed = true;
-            } else {
-                artifacts.add(artifact);
-            }
-        }
-        if (!removed) {
+        List<StoredArtifact> artifacts = state.artifacts().stream()
+                .filter(artifact -> !artifact.id().equals(id))
+                .toList();
+        if (artifacts.size() == state.artifacts().size()) {
             return false;
         }
         LinkedHashSet<UUID> active = new LinkedHashSet<>(state.globalActive());
         active.remove(id);
-        ArrayList<CardBinding> bindings = new ArrayList<>();
-        for (CardBinding binding : state.bindings()) {
-            if (!binding.artifactId().equals(id)) {
-                bindings.add(binding);
-            }
-        }
-        List<CardBinding> npcLorebooks = state.npcLorebooks().stream()
+        List<NpcBinding> npcLorebooks = state.npcLorebooks().stream()
                 .filter(binding -> !binding.artifactId().equals(id))
                 .toList();
-        saveState(new LibraryState(artifacts, active, bindings, npcLorebooks, state.extras()));
+        saveState(new LibraryState(artifacts, active, npcLorebooks, state.extras()));
         return true;
     }
 
-    /** Switches a lorebook on for every conversation. Cards must be bound instead. */
+    /** Switches a lorebook on for every conversation. */
     public synchronized void activateGlobal(UUID id) throws IOException {
         LibraryState state = loadState();
-        StoredArtifact artifact = state.find(id).orElseThrow(() -> new IllegalArgumentException("Unknown imported artifact."));
-        if (!artifact.result().activationPossible() || artifact.result().characterCard().isPresent()) {
-            throw new IllegalArgumentException("Artifact cannot be globally activated.");
-        }
+        requireActivatable(state, id);
         LinkedHashSet<UUID> active = new LinkedHashSet<>(state.globalActive());
         active.add(id);
-        saveState(new LibraryState(state.artifacts(), active, state.bindings(), state.npcLorebooks(), state.extras()));
+        saveState(state.withGlobalActive(active));
     }
 
     public synchronized void deactivateGlobal(UUID id) throws IOException {
         LibraryState state = loadState();
         LinkedHashSet<UUID> active = new LinkedHashSet<>(state.globalActive());
         active.remove(id);
-        saveState(new LibraryState(state.artifacts(), active, state.bindings(), state.npcLorebooks(), state.extras()));
+        saveState(state.withGlobalActive(active));
     }
 
-    /** Binds this card to one NPC (in one world, for this player), replacing any card bound there before. */
-    public synchronized void bindCard(LocalLorebookBindingKey key, UUID id) throws IOException {
-        Objects.requireNonNull(key, "key");
-        LibraryState state = loadState();
-        StoredArtifact artifact = state.find(id).orElseThrow(() -> new IllegalArgumentException("Unknown imported artifact."));
-        if (!artifact.result().activationPossible() || artifact.result().characterCard().isEmpty()) {
-            throw new IllegalArgumentException("Artifact cannot be used as a card binding.");
-        }
-        ArrayList<CardBinding> bindings = bindingsWithout(state, key);
-        bindings.add(new CardBinding(key, id));
-        saveState(new LibraryState(state.artifacts(), state.globalActive(), bindings, state.npcLorebooks(), state.extras()));
-    }
-
-    public synchronized void unbindCard(LocalLorebookBindingKey key) throws IOException {
-        Objects.requireNonNull(key, "key");
-        LibraryState state = loadState();
-        saveState(new LibraryState(state.artifacts(), state.globalActive(), bindingsWithout(state, key), state.npcLorebooks(), state.extras()));
-    }
-
-    private static ArrayList<CardBinding> bindingsWithout(LibraryState state, LocalLorebookBindingKey key) {
-        ArrayList<CardBinding> bindings = new ArrayList<>();
-        for (CardBinding binding : state.bindings()) {
-            if (!binding.key().equals(key)) {
-                bindings.add(binding);
-            }
-        }
-        return bindings;
-    }
-
-    /** Switches a lorebook on for one NPC only (in one world, for this player). Cards use {@link #bindCard}. */
+    /** Switches a lorebook on for one NPC only (in one world, for this player). */
     public synchronized void bindLorebook(LocalLorebookBindingKey key, UUID id) throws IOException {
         Objects.requireNonNull(key, "key");
         LibraryState state = loadState();
-        StoredArtifact artifact = state.find(id).orElseThrow(() -> new IllegalArgumentException("Unknown imported artifact."));
-        if (!artifact.result().activationPossible() || artifact.result().lorebook().isEmpty()) {
-            throw new IllegalArgumentException("Artifact cannot be bound as a lorebook.");
-        }
-        CardBinding binding = new CardBinding(key, id);
+        requireActivatable(state, id);
+        NpcBinding binding = new NpcBinding(key, id);
         if (state.npcLorebooks().contains(binding)) {
             return;
         }
-        ArrayList<CardBinding> npcLorebooks = new ArrayList<>(state.npcLorebooks());
+        ArrayList<NpcBinding> npcLorebooks = new ArrayList<>(state.npcLorebooks());
         npcLorebooks.add(binding);
-        saveState(new LibraryState(state.artifacts(), state.globalActive(), state.bindings(), npcLorebooks, state.extras()));
+        saveState(state.withNpcLorebooks(npcLorebooks));
     }
 
     public synchronized void unbindLorebook(LocalLorebookBindingKey key, UUID id) throws IOException {
         Objects.requireNonNull(key, "key");
         LibraryState state = loadState();
-        List<CardBinding> npcLorebooks = state.npcLorebooks().stream()
-                .filter(binding -> !binding.equals(new CardBinding(key, id)))
-                .toList();
-        saveState(new LibraryState(state.artifacts(), state.globalActive(), state.bindings(), npcLorebooks, state.extras()));
+        saveState(state.withNpcLorebooks(state.npcLorebooks().stream()
+                .filter(binding -> !binding.equals(new NpcBinding(key, id)))
+                .toList()));
     }
 
-    /** What's switched on for this conversation. The bound card's own lorebook comes before global ones. */
+    private static void requireActivatable(LibraryState state, UUID id) {
+        StoredArtifact artifact = state.find(id).orElseThrow(() -> new IllegalArgumentException("Unknown imported artifact."));
+        if (!artifact.result().activationPossible()) {
+            throw new IllegalArgumentException("Artifact cannot be activated.");
+        }
+    }
+
+    /** Lorebooks switched on for this conversation: this NPC's first, then the global ones. The card comes from the cards folder. */
     public synchronized ClientLorebookContext activeContext(LocalLorebookBindingKey key) {
         Objects.requireNonNull(key, "key");
         LibraryState state = loadState();
-        Optional<ImportedCharacterCard> card = Optional.empty();
-        ArrayList<ImportedLorebook> lorebooks = new ArrayList<>();
-        for (CardBinding binding : state.bindings()) {
-            if (!binding.key().equals(key)) {
-                continue;
-            }
-            Optional<ImportedCharacterCard> boundCard = state.find(binding.artifactId())
-                    .map(StoredArtifact::result)
-                    .filter(LorebookImportResult::activationPossible)
-                    .flatMap(LorebookImportResult::characterCard);
-            if (boundCard.isPresent()) {
-                ImportedCharacterCard importedCard = boundCard.orElseThrow();
-                card = Optional.of(importedCard);
-                importedCard.embeddedLorebook().ifPresent(lorebooks::add);
-            }
-            break;
-        }
         LinkedHashSet<UUID> lorebookIds = new LinkedHashSet<>();
         state.npcLorebooks().stream()
                 .filter(binding -> binding.key().equals(key))
                 .forEach(binding -> lorebookIds.add(binding.artifactId()));
         lorebookIds.addAll(state.globalActive());
+        ArrayList<ImportedLorebook> lorebooks = new ArrayList<>();
         for (UUID id : lorebookIds) {
             state.find(id)
                     .map(StoredArtifact::result)
                     .filter(LorebookImportResult::activationPossible)
-                    .filter(result -> result.characterCard().isEmpty())
                     .flatMap(LorebookImportResult::lorebook)
                     .ifPresent(lorebooks::add);
         }
-        return new ClientLorebookContext(card, lorebooks);
+        return new ClientLorebookContext(Optional.empty(), lorebooks);
     }
 
     private LibraryState loadState() {
@@ -245,18 +189,17 @@ public final class ClientLorebookLibraryStore {
         PrivateJsonFile.requireVersion(root, FORMAT_VERSION);
         ArrayList<StoredArtifact> artifacts = new ArrayList<>();
         for (JsonElement artifact : array(root, "artifacts")) {
-            artifacts.add(readArtifact(artifact.getAsJsonObject()));
+            // Early v1 libraries also stored character cards; those now live in the cards folder.
+            if (!artifact.getAsJsonObject().has("card")) {
+                artifacts.add(readArtifact(artifact.getAsJsonObject()));
+            }
         }
         LinkedHashSet<UUID> active = new LinkedHashSet<>();
         for (JsonElement id : array(root, "globalActive")) {
             active.add(UUID.fromString(id.getAsString()));
         }
-        ArrayList<CardBinding> bindings = new ArrayList<>();
-        for (JsonElement binding : array(root, "bindings")) {
-            bindings.add(readBinding(binding.getAsJsonObject()));
-        }
         // Added after v1 shipped; optional so v1 files without it still load.
-        ArrayList<CardBinding> npcLorebooks = new ArrayList<>();
+        ArrayList<NpcBinding> npcLorebooks = new ArrayList<>();
         if (root.has("npcLorebooks")) {
             for (JsonElement binding : array(root, "npcLorebooks")) {
                 npcLorebooks.add(readBinding(binding.getAsJsonObject()));
@@ -268,7 +211,7 @@ public final class ClientLorebookLibraryStore {
                 extras.add(key, root.get(key));
             }
         }
-        return new LibraryState(artifacts, active, bindings, npcLorebooks, extras);
+        return new LibraryState(artifacts, active, npcLorebooks, extras);
     }
 
     private void saveState(LibraryState state) throws IOException {
@@ -284,13 +227,8 @@ public final class ClientLorebookLibraryStore {
             active.add(id.toString());
         }
         root.add("globalActive", active);
-        JsonArray bindings = new JsonArray();
-        for (CardBinding binding : state.bindings()) {
-            bindings.add(writeBinding(binding));
-        }
-        root.add("bindings", bindings);
         JsonArray npcLorebooks = new JsonArray();
-        for (CardBinding binding : state.npcLorebooks()) {
+        for (NpcBinding binding : state.npcLorebooks()) {
             npcLorebooks.add(writeBinding(binding));
         }
         root.add("npcLorebooks", npcLorebooks);
@@ -329,7 +267,6 @@ public final class ClientLorebookLibraryStore {
             diagnostics.add(value);
         }
         target.add("diagnostics", diagnostics);
-        result.characterCard().ifPresent(card -> target.add("card", writeCard(card)));
         result.lorebook().ifPresent(lorebook -> target.add("lorebook", writeLorebook(lorebook)));
     }
 
@@ -341,9 +278,6 @@ public final class ClientLorebookLibraryStore {
                     LorebookImportDiagnosticCode.valueOf(string(diagnostic, "code")),
                     LorebookImportDiagnosticSeverity.valueOf(string(diagnostic, "severity"))));
         }
-        Optional<ImportedCharacterCard> card = json.has("card")
-                ? Optional.of(readCard(object(json, "card")))
-                : Optional.empty();
         Optional<ImportedLorebook> lorebook = json.has("lorebook")
                 ? Optional.of(readLorebook(object(json, "lorebook")))
                 : Optional.empty();
@@ -351,13 +285,13 @@ public final class ClientLorebookLibraryStore {
                 LorebookSourceFormat.valueOf(string(json, "format")),
                 CompatibilityProfile.fromPersistedName(string(json, "profile")),
                 string(json, "sourceFilename"),
-                card,
+                Optional.empty(),
                 lorebook,
                 integer(json, "acceptedEntryCount"),
                 integer(json, "rejectedEntryCount"),
                 diagnostics,
                 // Recomputed rather than read: older builds blocked whole files for problems that now only skip entries.
-                card.isPresent() || lorebook.isPresent());
+                lorebook.isPresent());
     }
 
     private static JsonObject writeLorebook(ImportedLorebook lorebook) {
@@ -468,55 +402,7 @@ public final class ClientLorebookLibraryStore {
                         bool(recursion, "excludeRecursion"), bool(recursion, "delayUntilRecursion")));
     }
 
-    private static JsonObject writeCard(ImportedCharacterCard card) {
-        JsonObject json = new JsonObject();
-        json.addProperty("name", card.name());
-        json.addProperty("description", card.description());
-        json.addProperty("personality", card.personality());
-        json.addProperty("scenario", card.scenario());
-        json.addProperty("firstMessage", card.firstMessage());
-        json.add("alternateGreetings", strings(card.alternateGreetings()));
-        json.addProperty("exampleDialogue", card.exampleDialogue());
-        json.addProperty("creator", card.creator());
-        json.addProperty("creatorVersion", card.creatorVersion());
-        json.add("tags", strings(card.tags()));
-        json.addProperty("systemPrompt", card.systemPrompt());
-        json.addProperty("postHistoryInstructions", card.postHistoryInstructions());
-        json.addProperty("creatorNotes", card.creatorNotes());
-        json.addProperty("nickname", card.nickname());
-        json.add("sourceMetadataJson", strings(card.sourceMetadataJson()));
-        json.add("assetDescriptorsJson", strings(card.assetDescriptorsJson()));
-        json.addProperty("sourceExtensionsJson", card.sourceExtensionsJson());
-        card.embeddedLorebook().ifPresent(lorebook -> json.add("embeddedLorebook", writeLorebook(lorebook)));
-        return json;
-    }
-
-    private static ImportedCharacterCard readCard(JsonObject json) {
-        Optional<ImportedLorebook> embeddedLorebook = json.has("embeddedLorebook")
-                ? Optional.of(readLorebook(object(json, "embeddedLorebook")))
-                : Optional.empty();
-        return new ImportedCharacterCard(
-                string(json, "name"),
-                string(json, "description"),
-                string(json, "personality"),
-                string(json, "scenario"),
-                string(json, "firstMessage"),
-                strings(array(json, "alternateGreetings")),
-                string(json, "exampleDialogue"),
-                string(json, "creator"),
-                string(json, "creatorVersion"),
-                strings(array(json, "tags")),
-                string(json, "systemPrompt"),
-                string(json, "postHistoryInstructions"),
-                string(json, "creatorNotes"),
-                string(json, "nickname"),
-                embeddedLorebook,
-                strings(array(json, "sourceMetadataJson")),
-                strings(array(json, "assetDescriptorsJson")),
-                string(json, "sourceExtensionsJson"));
-    }
-
-    private static JsonObject writeBinding(CardBinding binding) {
+    private static JsonObject writeBinding(NpcBinding binding) {
         JsonObject json = new JsonObject();
         json.addProperty("worldIdentity", binding.key().worldIdentity());
         json.addProperty("playerId", binding.key().playerId().toString());
@@ -525,8 +411,8 @@ public final class ClientLorebookLibraryStore {
         return json;
     }
 
-    private static CardBinding readBinding(JsonObject json) {
-        return new CardBinding(
+    private static NpcBinding readBinding(JsonObject json) {
+        return new NpcBinding(
                 new LocalLorebookBindingKey(
                         string(json, "worldIdentity"),
                         UUID.fromString(string(json, "playerId")),
@@ -611,10 +497,8 @@ public final class ClientLorebookLibraryStore {
             String sourceFilename,
             LorebookSourceFormat format,
             CompatibilityProfile profile,
-            boolean characterCard,
             boolean activationPossible,
             boolean globallyActive,
-            boolean boundToAnyCard,
             boolean boundToCurrentNpc,
             int skippedEntryCount) {
         public ArtifactSummary {
@@ -628,32 +512,37 @@ public final class ClientLorebookLibraryStore {
     private record StoredArtifact(UUID id, LorebookImportResult result) {
     }
 
-    private record CardBinding(LocalLorebookBindingKey key, UUID artifactId) {
+    private record NpcBinding(LocalLorebookBindingKey key, UUID artifactId) {
     }
 
     /**
-     * @param bindings     card bound to each NPC (at most one per NPC)
      * @param npcLorebooks lorebooks switched on for single NPCs (any number per NPC)
      * @param extras       top-level fields this build doesn't know, written back untouched
      */
     private record LibraryState(
             List<StoredArtifact> artifacts,
             LinkedHashSet<UUID> globalActive,
-            List<CardBinding> bindings,
-            List<CardBinding> npcLorebooks,
+            List<NpcBinding> npcLorebooks,
             JsonObject extras) {
         private LibraryState(
-                List<StoredArtifact> artifacts,
-                Set<UUID> globalActive,
-                List<CardBinding> bindings,
-                List<CardBinding> npcLorebooks,
-                JsonObject extras) {
-            this(List.copyOf(artifacts), new LinkedHashSet<>(globalActive), List.copyOf(bindings),
-                    List.copyOf(npcLorebooks), extras.deepCopy());
+                List<StoredArtifact> artifacts, Set<UUID> globalActive, List<NpcBinding> npcLorebooks, JsonObject extras) {
+            this(List.copyOf(artifacts), new LinkedHashSet<>(globalActive), List.copyOf(npcLorebooks), extras.deepCopy());
         }
 
         static LibraryState empty() {
-            return new LibraryState(List.of(), Set.of(), List.of(), List.of(), new JsonObject());
+            return new LibraryState(List.of(), Set.of(), List.of(), new JsonObject());
+        }
+
+        LibraryState withArtifacts(List<StoredArtifact> artifacts) {
+            return new LibraryState(artifacts, globalActive, npcLorebooks, extras);
+        }
+
+        LibraryState withGlobalActive(Set<UUID> active) {
+            return new LibraryState(artifacts, active, npcLorebooks, extras);
+        }
+
+        LibraryState withNpcLorebooks(List<NpcBinding> bindings) {
+            return new LibraryState(artifacts, globalActive, bindings, extras);
         }
 
         Optional<StoredArtifact> find(UUID id) {

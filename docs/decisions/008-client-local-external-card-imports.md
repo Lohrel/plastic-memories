@@ -1,6 +1,6 @@
 # ADR 008: Client-local external lorebook and character-card imports
 
-- Status: Accepted
+- Status: Accepted; the character-card parts are superseded by [ADR 009](009-character-cards-folder.md)
 
 ## Decision
 

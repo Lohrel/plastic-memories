@@ -14,12 +14,16 @@ All notable changes to Plastic Memories are tracked here. Changes under `[Unrele
 - Private prompt integration for activated lorebooks and locally bound character cards.
 - Persistence migration for libraries created with the removed legacy profile names.
 
+- Character-cards folder (`config/plastic_memories/character-cards/`) with a private portrait picker. PNG portraits and `.charx` icons are shown.
+- "My card" view on the NPC profile screen: see and edit your card's fields for that NPC without changing the file.
 - Lorebooks can be switched on for a single NPC, in addition to all NPCs.
 - At-depth lore placement, inserted into the chat history like SillyTavern and Marinara.
 - Optional sampling settings (temperature, top P/K, min P, penalties, max tokens), sent only when set.
 - Compatibility fixtures for every saved format, and migration support for NPC profile data.
 
 ### Changed
+
+- The lorebook library holds lorebooks only; character cards moved to their own folder.
 
 - Lorebook-library UI now focuses on activation, deactivation, binding, removal, and refresh instead of manual per-file importing.
 - Chub is no longer a separate runtime compatibility profile. Chub-hosted card and lorebook files are handled through supported SillyTavern-compatible shapes.

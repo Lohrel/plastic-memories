@@ -59,7 +59,7 @@ Positions are interpreted with the numbering of the app that produced the file (
 ## Activation scope
 
 - A lorebook can be switched on for **all NPCs**, for **one NPC** (one world + player + NPC), or both. It's included once either way.
-- A character card is bound to one NPC; its embedded book comes with it.
+- Character cards are not lorebook-library items. They live in `config/plastic_memories/character-cards/` and are picked per NPC from the profile screen (ADR 009). A picked card's embedded book comes with it.
 
 ## Character-card model
 

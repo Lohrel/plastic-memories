@@ -2,6 +2,7 @@ package dev.lohrel.plasticmemories.lorebook;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,5 +41,22 @@ final class ClientLorebookAutoImporterTest {
         assertEquals(1, library.listArtifacts().size());
         assertEquals(CompatibilityProfile.SILLY_TAVERN, library.listArtifacts().getFirst().profile());
         assertFalse(library.listArtifacts().getFirst().globallyActive());
+    }
+
+    @Test
+    void characterCardsInTheLorebookInboxAreCountedButNotImported() throws Exception {
+        Path inboxDirectory = tempDir.resolve("inbox");
+        Files.createDirectories(inboxDirectory);
+        Files.writeString(inboxDirectory.resolve("warden.json"), """
+                {"spec":"chara_card_v2","data":{"name":"Warden"}}
+                """);
+        ClientLorebookLibraryStore library = new ClientLorebookLibraryStore(tempDir.resolve("library"));
+
+        ClientLorebookAutoImporter.ImportReport report =
+                ClientLorebookAutoImporter.scanAndImport(new ClientLorebookInbox(inboxDirectory), library);
+
+        assertEquals(1, report.characterCardCount());
+        assertEquals(0, report.importedCount());
+        assertTrue(library.listArtifacts().isEmpty());
     }
 }

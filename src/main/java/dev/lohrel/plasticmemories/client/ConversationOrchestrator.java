@@ -1,6 +1,9 @@
 package dev.lohrel.plasticmemories.client;
 
 import dev.lohrel.plasticmemories.PlasticMemories;
+import dev.lohrel.plasticmemories.card.CardBindingStore;
+import dev.lohrel.plasticmemories.card.CharacterCardFolder;
+import dev.lohrel.plasticmemories.card.CharacterCards;
 import dev.lohrel.plasticmemories.conversation.ConversationState;
 import dev.lohrel.plasticmemories.conversation.ConversationTarget;
 import dev.lohrel.plasticmemories.conversation.NpcCandidate;
@@ -57,6 +60,8 @@ public final class ConversationOrchestrator {
     private final AtomicLong nextRequestId = new AtomicLong(1);
     private ClientLorebookLibraryStore lorebookLibrary;
     private ClientLorebookRequestContextLoader lorebookContextLoader;
+    // One instance, so the folder's parsed-card cache survives between messages.
+    private CharacterCards characterCards;
     private boolean requestPending;
 
     public ConversationOrchestrator() {
@@ -305,7 +310,9 @@ public final class ConversationOrchestrator {
                     selected.name(),
                     profileResponse.profile(),
                     profileResponse.canEdit(),
-                    (screen, profile) -> updateCharacterProfile(selected.npcId(), screen, profile)));
+                    (screen, profile) -> updateCharacterProfile(selected.npcId(), screen, profile),
+                    currentLorebookBindingKey().map(key -> profileScreen -> minecraft.setScreen(
+                            new CardEditorScreen(profileScreen, characterCards(), key, selected.name())))));
         }));
         return 1;
     }
@@ -376,9 +383,18 @@ public final class ConversationOrchestrator {
 
     private ClientLorebookRequestContextLoader lorebookRequestContextLoader() {
         if (lorebookContextLoader == null) {
-            lorebookContextLoader = new ClientLorebookRequestContextLoader(lorebookLibraryStore());
+            lorebookContextLoader = new ClientLorebookRequestContextLoader(lorebookLibraryStore(), characterCards()::boundCard);
         }
         return lorebookContextLoader;
+    }
+
+    private CharacterCards characterCards() {
+        if (characterCards == null) {
+            characterCards = new CharacterCards(
+                    new CharacterCardFolder(configDirectory().resolve("character-cards")),
+                    new CardBindingStore(configDirectory().resolve("card-bindings.json")));
+        }
+        return characterCards;
     }
 
     private ClientLorebookInbox lorebookInbox() {

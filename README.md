@@ -46,15 +46,25 @@ The repository targets Java 21. The first Gradle build downloads the pinned MCA 
 - `/plasticmemories memory status` and `/plasticmemories memory clear` inspect or clear the selected NPC's private memory.
 - `/plasticmemories status`, `/plasticmemories help`, and `/plasticmemories leave` provide conversation controls.
 
-## Lorebook and character-card imports
+## Character cards
 
-Drop files into the client-local inbox:
+Put character cards (PNG, JSON or `.charx`) in:
+
+```text
+config/plastic_memories/character-cards/
+```
+
+Open an NPC's profile (`/plasticmemories character`), switch to **My card**, and press **Card...** to pick one from a portrait grid. My card shows the card's fields (description, personality, scenario, first message, examples, system prompt, post-history) and lets you edit them for that NPC; **Reset to file** undoes your edits. Everything here is private: it's stored on your computer only, per world and NPC, and the card file itself is never changed. The folder is the collection, so editing or deleting a file there changes what the picker shows.
+
+## Lorebook imports
+
+Drop lorebook files into:
 
 ```text
 config/plastic_memories/lorebook-inbox/
 ```
 
-The library scans this directory when opened or refreshed. Accepted files are imported into client-local storage without a network upload and remain inactive until the player activates or binds them.
+The library scans this directory when opened or refreshed. Accepted files are imported into client-local storage without a network upload and stay off until the player switches them on for all NPCs or for one NPC.
 
 Supported source shapes include:
 
@@ -66,7 +76,7 @@ Supported source shapes include:
 
 Profile selection is automatic: native Marinara envelopes use Marinara semantics, while all other supported sources use SillyTavern semantics. Chub is not a separate runtime profile; Chub-hosted card and lorebook files are handled through the supported SillyTavern-compatible shapes. Existing local libraries using the removed profile names are migrated to SillyTavern when loaded.
 
-Ordinary lorebook activation is client-global by design. Character cards are bound to the selected local world/player/NPC tuple. Imported content remains client-only and is included in private provider prompts only after activation or binding.
+Imported content remains client-only and is included in private provider prompts only after it is switched on or picked.
 
 COOK may use any supported nearby vanilla container that is unlocked, unblocked, loaded, and permitted by vanilla world interaction checks. On multiplayer servers this can include another player's unprotected chest; third-party claims/ownership integrations, recipe cooking, fuel, and modded-container support remain later milestones. Result codes are part of the multiplayer protocol (currently v5), so every participant must use the exact same JAR.
 

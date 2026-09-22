@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "bindings": [
+    {
+      "worldIdentity": "singleplayer:/worlds/Test",
+      "playerId": "00000000-0000-0000-0000-00000000000a",
+      "npcId": "00000000-0000-0000-0000-000000000001",
+      "file": "seraphina.png"
+    }
+  ]
+}

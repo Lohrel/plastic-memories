@@ -255,11 +255,36 @@ public final class LorebookArtifactDecoder {
         return -1;
     }
 
-    private static boolean isPng(byte[] input) {
+    /** One file from a .charx zip, with the same entry-count, size and path checks as card decoding. */
+    public static Optional<byte[]> readArchiveEntry(byte[] archive, String entryName) {
+        if (archive == null || archive.length > LorebookLimits.MAX_RAW_INPUT_BYTES || unsafeArchivePath(entryName)) {
+            return Optional.empty();
+        }
+        int entries = 0;
+        long decompressed = 0;
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(archive), StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if (++entries > LorebookLimits.MAX_ARCHIVE_ENTRIES || unsafeArchivePath(entry.getName())) {
+                    return Optional.empty();
+                }
+                byte[] data = readBoundedEntry(zip, LorebookLimits.MAX_DECOMPRESSED_INPUT_BYTES - decompressed);
+                decompressed += data.length;
+                if (!entry.isDirectory() && entryName.equals(entry.getName())) {
+                    return Optional.of(data);
+                }
+            }
+        } catch (IOException | ArtifactDecodingException exception) {
+            return Optional.empty();
+        }
+        return Optional.empty();
+    }
+
+    public static boolean isPng(byte[] input) {
         return input.length >= PNG_SIGNATURE.length && Arrays.equals(PNG_SIGNATURE, Arrays.copyOf(input, PNG_SIGNATURE.length));
     }
 
-    private static boolean isZip(byte[] input) {
+    public static boolean isZip(byte[] input) {
         return input.length >= 2 && input[0] == 'P' && input[1] == 'K';
     }
 

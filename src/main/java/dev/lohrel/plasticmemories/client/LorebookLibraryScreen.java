@@ -23,6 +23,8 @@ public final class LorebookLibraryScreen extends Screen {
     private final Optional<LocalLorebookBindingKey> bindingKey;
     private final int page;
     private Component status;
+    // Built in init(): listing re-reads library.json, far too slow to do every frame.
+    private List<ClientLorebookLibraryStore.ArtifactSummary> artifacts = List.of();
 
     public LorebookLibraryScreen(
             Screen parent,
@@ -52,7 +54,7 @@ public final class LorebookLibraryScreen extends Screen {
     protected void init() {
         ClientLorebookAutoImporter.ImportReport importReport = ClientLorebookAutoImporter.scanAndImport(
                 inbox, library);
-        List<ClientLorebookLibraryStore.ArtifactSummary> artifacts = library.listArtifacts(bindingKey);
+        artifacts = library.listArtifacts(bindingKey);
         int pageCount = Math.max(1, pageCount(artifacts));
         int visiblePage = Math.min(page, pageCount - 1);
         int top = 36;
@@ -60,9 +62,6 @@ public final class LorebookLibraryScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Refresh"), button -> refresh(Component.empty()))
                 .bounds(20, top, 80, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Unbind card"), button -> unbind())
-                .bounds(104, top, 100, 20)
-                .build()).active = bindingKey.isPresent();
         if (pageCount > 1) {
             addRenderableWidget(Button.builder(Component.literal("Previous"), button -> changePage(visiblePage - 1, pageCount))
                     .bounds(width - 184, top, 80, 20)
@@ -74,26 +73,19 @@ public final class LorebookLibraryScreen extends Screen {
 
         int artifactY = 88;
         for (ClientLorebookLibraryStore.ArtifactSummary artifact : page(artifacts, visiblePage)) {
-            if (artifact.characterCard()) {
-                Button bind = addRenderableWidget(Button.builder(Component.literal("Bind to NPC"), button -> bindCard(artifact))
-                        .bounds(width - 188, artifactY, 82, 20)
-                        .build());
-                bind.active = artifact.activationPossible() && bindingKey.isPresent();
-            } else {
-                // A lorebook can be on for every NPC, for just the selected one, or both.
-                Button all = addRenderableWidget(Button.builder(
-                                Component.literal(artifact.globallyActive() ? "All NPCs: On" : "All NPCs: Off"),
-                                button -> toggleGlobal(artifact))
-                        .bounds(width - 274, artifactY, 82, 20)
-                        .build());
-                all.active = artifact.activationPossible();
-                Button thisNpc = addRenderableWidget(Button.builder(
-                                Component.literal(artifact.boundToCurrentNpc() ? "This NPC: On" : "This NPC: Off"),
-                                button -> toggleForNpc(artifact))
-                        .bounds(width - 188, artifactY, 82, 20)
-                        .build());
-                thisNpc.active = artifact.activationPossible() && bindingKey.isPresent();
-            }
+            // A lorebook can be on for every NPC, for just the selected one, or both.
+            Button all = addRenderableWidget(Button.builder(
+                            Component.literal(artifact.globallyActive() ? "All NPCs: On" : "All NPCs: Off"),
+                            button -> toggleGlobal(artifact))
+                    .bounds(width - 274, artifactY, 82, 20)
+                    .build());
+            all.active = artifact.activationPossible();
+            Button thisNpc = addRenderableWidget(Button.builder(
+                            Component.literal(artifact.boundToCurrentNpc() ? "This NPC: On" : "This NPC: Off"),
+                            button -> toggleForNpc(artifact))
+                    .bounds(width - 188, artifactY, 82, 20)
+                    .build());
+            thisNpc.active = artifact.activationPossible() && bindingKey.isPresent();
             addRenderableWidget(Button.builder(Component.literal("Remove"), button -> removeArtifact(artifact.id()))
                     .bounds(width - 102, artifactY, 82, 20)
                     .build());
@@ -110,10 +102,6 @@ public final class LorebookLibraryScreen extends Screen {
 
     private void changePage(int requestedPage, int pageCount) {
         refresh(Math.max(0, Math.min(requestedPage, pageCount - 1)), Component.empty());
-    }
-
-    private void bindCard(ClientLorebookLibraryStore.ArtifactSummary artifact) {
-        update(() -> library.bindCard(bindingKey.orElseThrow(), artifact.id()), "Card bound to the selected NPC.");
     }
 
     private void toggleGlobal(ClientLorebookLibraryStore.ArtifactSummary artifact) {
@@ -144,18 +132,6 @@ public final class LorebookLibraryScreen extends Screen {
     @FunctionalInterface
     private interface LibraryChange {
         void apply() throws IOException;
-    }
-
-    private void unbind() {
-        if (bindingKey.isEmpty()) {
-            return;
-        }
-        try {
-            library.unbindCard(bindingKey.orElseThrow());
-            refresh(Component.literal("Any local card binding for the selected NPC was removed."));
-        } catch (IOException exception) {
-            refresh(Component.literal("Could not update the local card binding."));
-        }
     }
 
     private void removeArtifact(UUID id) {
@@ -193,15 +169,12 @@ public final class LorebookLibraryScreen extends Screen {
     }
 
     private void drawArtifacts(GuiGraphics graphics) {
-        List<ClientLorebookLibraryStore.ArtifactSummary> artifacts = library.listArtifacts(bindingKey);
         int visiblePage = Math.min(page, Math.max(0, pageCount(artifacts) - 1));
         int y = 88;
         for (ClientLorebookLibraryStore.ArtifactSummary artifact : page(artifacts, visiblePage)) {
             String state;
             if (!artifact.activationPossible()) {
                 state = "unavailable";
-            } else if (artifact.characterCard()) {
-                state = artifact.boundToAnyCard() ? "bound" : "not bound";
             } else {
                 state = artifact.globallyActive() || artifact.boundToCurrentNpc() ? "on" : "off";
             }
@@ -227,16 +200,21 @@ public final class LorebookLibraryScreen extends Screen {
     }
 
     private static Component automaticImportStatus(ClientLorebookAutoImporter.ImportReport report) {
+        // Cards stay in the inbox until the player moves them, so their note must not hide the others.
+        List<String> parts = new java.util.ArrayList<>();
         if (report.importedCount() > 0) {
-            return Component.literal("Imported " + report.importedCount() + " new file(s).");
+            parts.add("Imported " + report.importedCount() + " new file(s).");
         }
         if (report.rejectedCount() > 0) {
-            return Component.literal("Skipped " + report.rejectedCount() + " unsupported file(s).");
+            parts.add("Skipped " + report.rejectedCount() + " unsupported file(s).");
         }
         if (report.failedCount() > 0) {
-            return Component.literal("Could not save " + report.failedCount() + " file(s).");
+            parts.add("Could not save " + report.failedCount() + " file(s).");
         }
-        return Component.empty();
+        if (report.characterCardCount() > 0) {
+            parts.add(report.characterCardCount() + " character card(s) here belong in config/plastic_memories/character-cards/.");
+        }
+        return Component.literal(String.join(" ", parts));
     }
 
     private static <T> List<T> page(List<T> values, int page) {

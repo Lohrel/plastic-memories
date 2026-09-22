@@ -2,6 +2,7 @@ package dev.lohrel.plasticmemories.lorebook;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -17,34 +18,33 @@ final class ClientLorebookLibraryStoreTest {
     Path tempDir;
 
     @Test
-    void exposesOnlyExplicitlyActivatedGlobalLoreAndTheLocallyBoundCardBookAfterReload() throws Exception {
+    void exposesOnlyExplicitlyActivatedLoreAfterReload() throws Exception {
         LorebookImportResult global = importJson("global.json", """
                 {"entries":[{"id":"global","keys":["global"],"content":"Global lore."}]}
                 """);
-        LorebookImportResult card = importJson("card.json", """
-                {
-                  "spec":"chara_card_v2",
-                  "data":{
-                    "name":"Warden",
-                    "character_book":{"entries":[{"id":"card","keys":["card"],"content":"Card lore."}]}
-                  }
-                }
-                """);
         ClientLorebookLibraryStore store = new ClientLorebookLibraryStore(tempDir.resolve("library"));
         UUID globalId = store.store(global);
-        UUID cardId = store.store(card);
         LocalLorebookBindingKey key = new LocalLorebookBindingKey("singleplayer:example", UUID.randomUUID(), UUID.randomUUID());
 
         assertTrue(store.activeContext(key).lorebooks().isEmpty());
         store.activateGlobal(globalId);
-        store.bindCard(key, cardId);
 
         ClientLorebookContext context = new ClientLorebookLibraryStore(tempDir.resolve("library")).activeContext(key);
-        assertEquals("Warden", context.card().orElseThrow().name());
-        assertEquals(List.of("card", "global"), context.lorebooks().stream()
+        assertTrue(context.card().isEmpty());
+        assertEquals(List.of("global"), context.lorebooks().stream()
                 .flatMap(book -> book.entries().stream())
                 .map(ImportedLorebookEntry::id)
                 .toList());
+    }
+
+    @Test
+    void characterCardsAreNotStoredInTheLibrary() throws Exception {
+        LorebookImportResult card = importJson("card.json", """
+                {"spec":"chara_card_v2","data":{"name":"Warden"}}
+                """);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new ClientLorebookLibraryStore(tempDir.resolve("library")).store(card));
     }
 
     @Test
@@ -129,10 +129,12 @@ final class ClientLorebookLibraryStoreTest {
                 UUID.fromString("00000000-0000-0000-0000-00000000000a"),
                 UUID.fromString("00000000-0000-0000-0000-000000000001"));
 
-        assertEquals(2, store.listArtifacts().size());
+        // v1 libraries could also hold character cards; those now live in the cards folder and are dropped.
+        assertEquals(List.of("world.json"),
+                store.listArtifacts().stream().map(ClientLorebookLibraryStore.ArtifactSummary::sourceFilename).toList());
         ClientLorebookContext context = store.activeContext(boundNpc);
-        assertEquals("Warden", context.card().orElseThrow().name());
-        assertEquals(List.of("The gate is old.", "Dragons sleep under the mountain."), context.lorebooks().stream()
+        assertTrue(context.card().isEmpty());
+        assertEquals(List.of("Dragons sleep under the mountain."), context.lorebooks().stream()
                 .flatMap(book -> book.entries().stream())
                 .map(ImportedLorebookEntry::content)
                 .toList());

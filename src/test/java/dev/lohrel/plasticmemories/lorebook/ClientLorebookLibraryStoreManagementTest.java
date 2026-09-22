@@ -33,7 +33,6 @@ final class ClientLorebookLibraryStoreManagementTest {
         assertEquals(artifactId, artifacts.getFirst().id());
         assertEquals("forest.json", artifacts.getFirst().sourceFilename());
         assertTrue(artifacts.getFirst().globallyActive());
-        assertFalse(artifacts.getFirst().boundToAnyCard());
         assertTrue(store.remove(artifactId));
         assertTrue(store.listArtifacts().isEmpty());
         assertTrue(store.activeContext(new LocalLorebookBindingKey(
